@@ -720,23 +720,17 @@ async function lookupFood() {
   const errEl=document.getElementById('lookupError');
   btn.disabled=true;loading.style.display='block';errEl.style.display='none';
 
-  const prompt=`You are a nutrition database. Estimate combined nutrition for this food description (may include brand names, restaurants, or stores). Return ONLY a valid JSON object, no markdown, no extra text:
-{"name":"short name max 40 chars","cal":0,"prot":0,"carb":0,"fib":0,"fat":0,"sugar":0,"sodium":0,"satfat":0,"pot":0,"calcium":0,"iron":0,"mag":0,"vitc":0,"vitd":0,"omega3":0,"b12":0,"zinc":0,"folate":0,"selenium":0}
-All values are numbers. Units: cal=kcal, sodium/pot/calcium/mag/vitc=mg, iron/zinc=mg, vitd/b12/folate/selenium=mcg, rest=grams.
-Food: ${input}`;
-
   for(let i=0;i<3;i++){
     try{
-      const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key': SUPABASE_KEY,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
-      const d=await r.json();
-      const txt=d.content?.find(b=>b.type==='text')?.text||'';
-      const match=txt.match(/\{[\s\S]*\}/);
-      if(!match)throw new Error('no json');
-      fillFields(JSON.parse(match[0]),input);
+      const r=await fetch('/.netlify/functions/lookup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({food:input})});
+      if(!r.ok)throw new Error('status '+r.status);
+      const nutrition=await r.json();
+      if(nutrition.error)throw new Error(nutrition.error);
+      fillFields(nutrition,input);
       document.getElementById('foodLookupInput').value='';
       loading.style.display='none';btn.disabled=false;
       showToast('Nutrition filled in!');return;
-    }catch(e){if(i<2)await new Promise(r=>setTimeout(r,600));}
+    }catch(e){if(i<2)await new Promise(r=>setTimeout(r,800));}
   }
   errEl.textContent='Could not get nutrition. Fill in manually or try rephrasing.';
   errEl.style.display='block';loading.style.display='none';btn.disabled=false;
@@ -885,9 +879,9 @@ async function askAI(){
   document.getElementById('aiLoading').classList.add('visible');
   document.getElementById('aiResult').classList.remove('visible');
   try{
-    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,messages:[{role:'user',content:ctx}]})});
+    const r=await fetch('/.netlify/functions/lookup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({food:ctx, mode:'coach'})});
     const d=await r.json();
-    document.getElementById('aiResult').textContent=d.content?.find(b=>b.type==='text')?.text||'Try again.';
+    document.getElementById('aiResult').textContent=d.response||d.name||'Try again.';
     document.getElementById('aiResult').classList.add('visible');
   }catch(e){document.getElementById('aiResult').textContent='Could not connect. Try again.';document.getElementById('aiResult').classList.add('visible');}
   document.getElementById('aiLoading').classList.remove('visible');

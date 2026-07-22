@@ -414,11 +414,16 @@ function setSyncStatus(msg, cls='') {
 async function loadDayLog() {
   setSyncStatus('Syncing...', 'syncing');
   try {
-    const {data,error} = await sb.from('nutrition_log').select('*').eq('log_date', dateKey(currentDate)).order('created_at');
+    console.log('Supabase URL:', SUPABASE_URL);
+    console.log('Supabase KEY prefix:', SUPABASE_KEY.substring(0, 20));
+    const {data, error} = await sb.from('nutrition_log').select('*').eq('log_date', dateKey(currentDate)).order('created_at');
+    console.log('Supabase data:', data);
+    console.log('Supabase error:', error);
     if (error) throw error;
     dayLog = data || [];
     setSyncStatus('');
   } catch(e) {
+    console.log('Supabase catch error:', e.message, e);
     setSyncStatus('Offline — changes save locally', 'error');
     dayLog = JSON.parse(localStorage.getItem('log_'+dateKey(currentDate)) || '[]');
   }

@@ -115,13 +115,13 @@
     <h2 style="font-family:'Fraunces',serif;font-size:1.8rem;font-weight:300;margin-bottom:8px">Fork <span style="color:var(--accent);font-style:italic">Yeah!</span></h2>
     <p style="color:var(--muted);font-size:13px;margin-bottom:28px">Who's tracking today?</p>
     <div style="display:flex;gap:12px;justify-content:center">
-      <button onclick="setUser('daniel')" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 32px;cursor:pointer;text-align:center;transition:border-color 0.2s;flex:1" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+      <button onclick="setUser('daniel')" style="background:var(--surface);border:2px solid var(--accent);border-radius:12px;padding:24px 32px;cursor:pointer;text-align:center;flex:1">
         <div style="font-size:32px;margin-bottom:8px">🥣</div>
-        <div style="font-size:15px;font-weight:600;color:var(--text)">Daniel</div>
+        <div style="font-size:18px;font-weight:700;color:var(--accent);font-family:'Fraunces',serif">Daniel</div>
       </button>
-      <button onclick="setUser('james')" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 32px;cursor:pointer;text-align:center;transition:border-color 0.2s;flex:1" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+      <button onclick="setUser('james')" style="background:var(--surface);border:2px solid var(--accent2);border-radius:12px;padding:24px 32px;cursor:pointer;text-align:center;flex:1">
         <div style="font-size:32px;margin-bottom:8px">🏃</div>
-        <div style="font-size:15px;font-weight:600;color:var(--text)">James</div>
+        <div style="font-size:18px;font-weight:700;color:var(--accent2);font-family:'Fraunces',serif">James</div>
       </button>
     </div>
   </div>
@@ -442,7 +442,7 @@
   <header><h1>Your <span>Goals</span></h1></header>
   <div class="settings-section">
     <h3>Daily Nutrition Goals</h3>
-    <p style="font-size:11px;color:var(--muted);margin-bottom:14px;font-family:'DM Mono',monospace">Personalized for: male, 41, 5'9", 155 lbs, sedentary, vegetarian</p>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:14px;font-family:'DM Mono',monospace" id="goals-profile-desc">Loading...</p>
     <div class="manual-form">
       <div class="form-row"><div class="form-group"><label>Calories</label><input type="number" id="g-cal" placeholder="2050"></div><div class="form-group"><label>Protein (g)</label><input type="number" id="g-prot" placeholder="102"></div></div>
       <div class="form-row"><div class="form-group"><label>Fiber (g)</label><input type="number" id="g-fib" placeholder="38"></div><div class="form-group"><label>Fat (g)</label><input type="number" id="g-fat" placeholder="62"></div></div>
@@ -660,12 +660,14 @@ const PROFILES = {
   daniel: {
     name: 'Daniel',
     emoji: '🥣',
+    description: 'Male, 41, 5\'9", 155 lbs, sedentary, vegetarian, maintenance',
     goals: {cal:2050,prot:102,fib:38,fat:62,carb:275,sugar:25,satfat:22,sodium:2300,omega3:1.6,pot:3400,calcium:1000,iron:8,mag:420,vitc:90,vitd:17.5,b12:2.4,zinc:11,folate:400,selenium:55},
     defaultMeals: DEFAULT_MEALS
   },
   james: {
     name: 'James',
     emoji: '🏃',
+    description: 'Male, 45, 5\'9", 159.5 lbs, active, weight loss',
     goals: {cal:1800,prot:115,fib:38,fat:55,carb:185,sugar:25,satfat:18,sodium:2300,omega3:1.6,pot:3400,calcium:1000,iron:8,mag:420,vitc:90,vitd:17.5,b12:2.4,zinc:11,folate:400,selenium:55},
     defaultMeals: [
       {id:'j1',name:"Chobani Greek Yogurt + Kind Granola + Chia",color:"#5bdd8b",cal:373,prot:23,carb:42,fib:8,fat:12,sugar:12,sodium:95,satfat:1.5,omega3:1.2,pot:350,calcium:250,iron:1.5,mag:60,vitc:2,vitd:0,b12:0.8,zinc:1.2,folate:20,selenium:8},
@@ -980,6 +982,9 @@ function selectColor(el){document.querySelectorAll('.color-dot').forEach(d=>d.cl
 
 // ── GOALS ──────────────────────────────────────────────────────────────────
 function populateGoalFields(){
+  const profile = PROFILES[currentUser];
+  const desc = document.getElementById('goals-profile-desc');
+  if (desc) desc.textContent = profile.description;
   const map={cal:'g-cal',prot:'g-prot',fib:'g-fib',fat:'g-fat',carb:'g-carb',sugar:'g-sugar',satfat:'g-satfat',sodium:'g-sodium',omega3:'g-omega3',pot:'g-pot',calcium:'g-calcium',iron:'g-iron',mag:'g-mag',vitc:'g-vitc',vitd:'g-vitd',b12:'g-b12',zinc:'g-zinc',folate:'g-folate',selenium:'g-selenium'};
   Object.entries(map).forEach(([k,id])=>{const el=document.getElementById(id);if(el)el.value=goals[k]||'';});
 }
@@ -989,7 +994,7 @@ function saveGoals(){saveGoalsToDB();}
 async function renderWeightChart(){
   let entries=[];
   try{
-    const {data}=await sb.from('fitbit_data').select('log_date,weight').neq('log_date','__goals__').gt('weight',0).order('log_date');
+    const {data}=await sb.from('fitbit_data').select('log_date,weight').eq('user_id',currentUser).neq('log_date','__goals__').gt('weight',0).order('log_date');
     if(data)entries=data.filter(r=>r.weight>0).slice(-30);
   }catch(e){}
   const empty=document.getElementById('weightEmpty');
@@ -1033,7 +1038,8 @@ async function askAI(){
   const input=document.getElementById('aiInput').value.trim();if(!input)return;
   const T={cal:0,prot:0,fib:0};
   dayLog.forEach(e=>{const m=e.meal_data||e;T.cal+=(+m.cal||0);T.prot+=(+m.prot||0);T.fib+=(+m.fib||0);});
-  const ctx=`User: Daniel, 41yo male, 5'9", 155lbs, sedentary desk job, vegetarian (eggs+dairy ok), maintenance goal. Goals: ${JSON.stringify(goals)}. Today so far: ${Math.round(T.cal)} cal, ${Math.round(T.prot)}g protein, ${Math.round(T.fib)}g fiber. Meals: ${dayLog.map(e=>(e.meal_data||e).name).join(', ')||'none'}. Question: ${input}. Answer in 2-4 sentences with practical advice.`;
+  const profile = PROFILES[currentUser];
+  const ctx=`User: ${profile.name}, ${profile.description}. Goals: ${JSON.stringify(goals)}. Today so far: ${Math.round(T.cal)} cal, ${Math.round(T.prot)}g protein, ${Math.round(T.fib)}g fiber. Meals: ${dayLog.map(e=>(e.meal_data||e).name).join(', ')||'none'}. Question: ${input}. Answer in 2-4 sentences with practical advice.`;
   document.getElementById('aiLoading').classList.add('visible');
   document.getElementById('aiResult').classList.remove('visible');
   try{
@@ -1339,6 +1345,36 @@ async function lookupBarcode(barcode) {
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
 function clearToday(){if(confirm('Clear all meals today?')){dayLog=[];renderAll();showToast('Cleared');}}
 
+function setUser(userId) {
+  currentUser = userId;
+  localStorage.setItem('fork-yeah-user', userId);
+  document.getElementById('profileModal').style.display = 'none';
+  goals = {...PROFILES[userId].goals};
+  startApp();
+}
+
+function switchProfile() {
+  currentUser = null;
+  localStorage.removeItem('fork-yeah-user');
+  document.getElementById('profileModal').style.display = 'flex';
+}
+
+function showProfileModal() {
+  document.getElementById('profileModal').style.display = 'flex';
+}
+
+async function startApp() {
+  updateDateLabel();
+  await Promise.all([loadGoals(), loadSavedMeals(), loadDayLog(), loadFitbitDay()]);
+  populateGoalFields();
+  // Force tracker page active
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-tracker').classList.add('active');
+  document.querySelectorAll('.nav-btn')[0].classList.add('active');
+  renderAll();
+}
+
 // ── INIT ───────────────────────────────────────────────────────────────────
 async function init(){
   if (!currentUser) {
@@ -1346,10 +1382,7 @@ async function init(){
     return;
   }
   goals = {...PROFILES[currentUser].goals};
-  updateDateLabel();
-  await Promise.all([loadGoals(), loadSavedMeals(), loadDayLog(), loadFitbitDay()]);
-  populateGoalFields();
-  showPage('tracker');
+  startApp();
 }
 init();
 </script>

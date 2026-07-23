@@ -99,6 +99,8 @@
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--accent);color:#0f1117;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:100;}
   .toast.show{opacity:1;}
   .hidden{display:none!important;}
+  .trend-range-btn{padding:6px 14px;border:1px solid var(--border);border-radius:20px;background:var(--card);color:var(--muted);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;font-family:'Inter',sans-serif;transition:all 0.2s;}
+  .trend-range-btn.active{background:var(--accent);color:#0f1117;border-color:var(--accent);}
   .sync-indicator{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;text-align:center;margin-bottom:12px;min-height:14px;}
   .sync-indicator.syncing{color:var(--accent2);}
   .sync-indicator.error{color:var(--accent3);}
@@ -109,6 +111,7 @@
 <div class="nav">
   <button class="nav-btn active" onclick="showPage('tracker')">📊 Track</button>
   <button class="nav-btn" onclick="showPage('meals')">🥗 Meals</button>
+  <button class="nav-btn" onclick="showPage('trends')">📈 Trends</button>
   <button class="nav-btn" onclick="showPage('settings')">⚙️ Goals</button>
 </div>
 
@@ -335,6 +338,86 @@
   <div class="saved-meals-grid" id="manageSavedList"></div>
 </div>
 
+<!-- TRENDS PAGE -->
+<div id="page-trends" class="page">
+  <header><h1>Your <span>Trends</span></h1></header>
+
+  <!-- TIME RANGE SELECTOR -->
+  <div style="display:flex;gap:6px;margin-bottom:20px;overflow-x:auto;padding-bottom:4px">
+    <button class="trend-range-btn active" onclick="setTrendRange(7)" id="range-7">7D</button>
+    <button class="trend-range-btn" onclick="setTrendRange(14)" id="range-14">2W</button>
+    <button class="trend-range-btn" onclick="setTrendRange(30)" id="range-30">1M</button>
+    <button class="trend-range-btn" onclick="setTrendRange(90)" id="range-90">3M</button>
+    <button class="trend-range-btn" onclick="setTrendRange(180)" id="range-180">6M</button>
+    <button class="trend-range-btn" onclick="setTrendRange(365)" id="range-365">1Y</button>
+  </div>
+
+  <!-- SUMMARY CARDS -->
+  <div class="goals-grid" style="margin-bottom:20px">
+    <div class="goal-card calories">
+      <div class="goal-label">Avg Calories</div>
+      <div class="goal-val" id="trend-avg-cal">—</div>
+      <div class="goal-sub" id="trend-avg-cal-sub">vs 2,050 goal</div>
+    </div>
+    <div class="goal-card protein">
+      <div class="goal-label">Avg Protein</div>
+      <div class="goal-val" id="trend-avg-prot">—</div>
+      <div class="goal-sub">vs 102g goal</div>
+    </div>
+    <div class="goal-card fiber">
+      <div class="goal-label">Days Logged</div>
+      <div class="goal-val" id="trend-days">—</div>
+      <div class="goal-sub" id="trend-days-sub">of selected range</div>
+    </div>
+    <div class="goal-card fat">
+      <div class="goal-label">Goal Hit Rate</div>
+      <div class="goal-val" id="trend-hit-rate">—</div>
+      <div class="goal-sub">calorie goal days</div>
+    </div>
+  </div>
+
+  <!-- CALORIES CHART -->
+  <div class="macro-detail" style="margin-bottom:20px">
+    <div class="section-title">Calories Over Time</div>
+    <canvas id="calChart" style="width:100%;height:160px"></canvas>
+    <div id="calChartEmpty" style="display:none;text-align:center;padding:20px;color:var(--muted);font-size:13px">Not enough data yet — keep logging daily!</div>
+  </div>
+
+  <!-- PROTEIN CHART -->
+  <div class="macro-detail" style="margin-bottom:20px">
+    <div class="section-title">Protein Over Time</div>
+    <canvas id="protChart" style="width:100%;height:160px"></canvas>
+    <div id="protChartEmpty" style="display:none;text-align:center;padding:20px;color:var(--muted);font-size:13px">Not enough data yet</div>
+  </div>
+
+  <!-- WEIGHT CHART -->
+  <div class="macro-detail" style="margin-bottom:20px">
+    <div class="section-title">Weight Over Time</div>
+    <canvas id="trendWeightChart" style="width:100%;height:160px"></canvas>
+    <div id="trendWeightEmpty" style="display:none;text-align:center;padding:20px;color:var(--muted);font-size:13px">No weight data yet — enter weight in Fitbit panel daily</div>
+  </div>
+
+  <!-- MACRO AVERAGES -->
+  <div class="macro-detail" style="margin-bottom:20px">
+    <div class="section-title">Average Macros</div>
+    <div class="macro-row"><span class="macro-name">Calories</span><div class="macro-bar-bg"><div class="macro-bar-fill" id="trend-bar-cal" style="--fill-color:#f4c542;width:0%"></div></div><span class="macro-nums" id="trend-num-cal"></span></div>
+    <div class="macro-row"><span class="macro-name">Protein</span><div class="macro-bar-bg"><div class="macro-bar-fill" id="trend-bar-prot" style="--fill-color:#5bdd8b;width:0%"></div></div><span class="macro-nums" id="trend-num-prot"></span></div>
+    <div class="macro-row"><span class="macro-name">Carbs</span><div class="macro-bar-bg"><div class="macro-bar-fill" id="trend-bar-carb" style="--fill-color:#f4c542;width:0%"></div></div><span class="macro-nums" id="trend-num-carb"></span></div>
+    <div class="macro-row"><span class="macro-name">Fiber</span><div class="macro-bar-bg"><div class="macro-bar-fill" id="trend-bar-fib" style="--fill-color:#4cc9f0;width:0%"></div></div><span class="macro-nums" id="trend-num-fib"></span></div>
+    <div class="macro-row"><span class="macro-name">Fat</span><div class="macro-bar-bg"><div class="macro-bar-fill" id="trend-bar-fat" style="--fill-color:#f77f6e;width:0%"></div></div><span class="macro-nums" id="trend-num-fat"></span></div>
+    <div class="macro-row"><span class="macro-name">Sodium</span><div class="macro-bar-bg"><div class="macro-bar-fill" id="trend-bar-sodium" style="--fill-color:#4cc9f0;width:0%"></div></div><span class="macro-nums" id="trend-num-sodium"></span></div>
+  </div>
+
+  <!-- TOP MEALS -->
+  <div class="section-title">Most Logged Meals</div>
+  <div id="topMealsList" class="saved-meals-grid" style="margin-bottom:20px"></div>
+
+  <div id="trendsEmpty" style="display:none;text-align:center;padding:40px;color:var(--muted)">
+    <span style="font-size:32px;display:block;margin-bottom:12px">📈</span>
+    Start logging meals daily and your trends will appear here.
+  </div>
+</div>
+
 <!-- SETTINGS PAGE -->
 <div id="page-settings" class="page">
   <header><h1>Your <span>Goals</span></h1></header>
@@ -554,9 +637,10 @@ function showPage(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
-  document.querySelectorAll('.nav-btn')[['tracker','meals','settings'].indexOf(id)].classList.add('active');
+  document.querySelectorAll('.nav-btn')[['tracker','meals','trends','settings'].indexOf(id)].classList.add('active');
   if (id==='meals') renderMealsPage();
   if (id==='tracker') renderAll();
+  if (id==='trends') renderTrends();
   if (id==='settings') { populateGoalFields(); renderWeightChart(); }
 }
 
@@ -894,7 +978,204 @@ async function askAI(){
 }
 document.getElementById('aiInput')?.addEventListener('keydown',e=>{if(e.key==='Enter')askAI();});
 
-// ── UTILS ──────────────────────────────────────────────────────────────────
+// ── TRENDS ─────────────────────────────────────────────────────────────────
+let trendDays = 7;
+
+function setTrendRange(days) {
+  trendDays = days;
+  document.querySelectorAll('.trend-range-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('range-'+days)?.classList.add('active');
+  renderTrends();
+}
+
+async function renderTrends() {
+  // Fetch log data for range
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - trendDays);
+  const startKey = dateKey(startDate);
+  const endKey = dateKey(endDate);
+
+  let logs = [], fitbitRows = [];
+  try {
+    const {data: logData} = await sb.from('nutrition_log').select('*').gte('log_date', startKey).lte('log_date', endKey).order('log_date');
+    const {data: fbData} = await sb.from('fitbit_data').select('*').gte('log_date', startKey).lte('log_date', endKey).neq('log_date','__goals__').order('log_date');
+    logs = logData || [];
+    fitbitRows = fbData || [];
+  } catch(e) {}
+
+  if (logs.length === 0) {
+    document.getElementById('trendsEmpty').style.display = 'block';
+    ['calChart','protChart','trendWeightChart'].forEach(id => {
+      const c = document.getElementById(id);
+      if (c) c.style.display = 'none';
+    });
+    return;
+  }
+  document.getElementById('trendsEmpty').style.display = 'none';
+
+  // Group logs by date
+  const byDate = {};
+  logs.forEach(e => {
+    const m = e.meal_data || e;
+    if (!byDate[e.log_date]) byDate[e.log_date] = {cal:0,prot:0,carb:0,fib:0,fat:0,sodium:0};
+    byDate[e.log_date].cal    += (+m.cal   || 0);
+    byDate[e.log_date].prot   += (+m.prot  || 0);
+    byDate[e.log_date].carb   += (+m.carb  || 0);
+    byDate[e.log_date].fib    += (+m.fib   || 0);
+    byDate[e.log_date].fat    += (+m.fat   || 0);
+    byDate[e.log_date].sodium += (+m.sodium|| 0);
+  });
+
+  const dates = Object.keys(byDate).sort();
+  const daysLogged = dates.length;
+  const avgCal  = daysLogged ? Math.round(dates.reduce((s,d)=>s+byDate[d].cal,0)/daysLogged) : 0;
+  const avgProt = daysLogged ? Math.round(dates.reduce((s,d)=>s+byDate[d].prot,0)/daysLogged) : 0;
+  const avgCarb = daysLogged ? Math.round(dates.reduce((s,d)=>s+byDate[d].carb,0)/daysLogged) : 0;
+  const avgFib  = daysLogged ? Math.round(dates.reduce((s,d)=>s+byDate[d].fib,0)/daysLogged) : 0;
+  const avgFat  = daysLogged ? Math.round(dates.reduce((s,d)=>s+byDate[d].fat,0)/daysLogged) : 0;
+  const avgSod  = daysLogged ? Math.round(dates.reduce((s,d)=>s+byDate[d].sodium,0)/daysLogged) : 0;
+  const hitDays = dates.filter(d => byDate[d].cal >= goals.cal * 0.8 && byDate[d].cal <= goals.cal * 1.15).length;
+  const hitRate = daysLogged ? Math.round(hitDays/daysLogged*100) : 0;
+
+  // Summary cards
+  document.getElementById('trend-avg-cal').textContent = avgCal.toLocaleString();
+  document.getElementById('trend-avg-prot').textContent = avgProt + 'g';
+  document.getElementById('trend-days').textContent = daysLogged;
+  document.getElementById('trend-days-sub').textContent = `of ${trendDays} day range`;
+  document.getElementById('trend-hit-rate').textContent = hitRate + '%';
+
+  // Macro averages bars
+  const tb = (id,v,g,lbl) => {
+    const b=document.getElementById('trend-bar-'+id);if(b)b.style.width=Math.min(100,v/g*100)+'%';
+    const n=document.getElementById('trend-num-'+id);if(n)n.textContent=lbl;
+  };
+  tb('cal',  avgCal,  goals.cal,    `${avgCal}/${goals.cal}`);
+  tb('prot', avgProt, goals.prot,   `${avgProt}/${goals.prot}g`);
+  tb('carb', avgCarb, goals.carb,   `${avgCarb}/${goals.carb}g`);
+  tb('fib',  avgFib,  goals.fib,    `${avgFib}/${goals.fib}g`);
+  tb('fat',  avgFat,  goals.fat,    `${avgFat}/${goals.fat}g`);
+  tb('sod',  avgSod, goals.sodium,  `${avgSod}/${goals.sodium}mg`);
+  document.getElementById('trend-num-sodium').textContent = `${avgSod}/${goals.sodium}mg`;
+
+  // Top meals
+  const mealCounts = {};
+  logs.forEach(e => {
+    const name = (e.meal_data||e).name || 'Unknown';
+    mealCounts[name] = (mealCounts[name]||0)+1;
+  });
+  const topMeals = Object.entries(mealCounts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const topList = document.getElementById('topMealsList');
+  topList.innerHTML = '';
+  topMeals.forEach(([name,count]) => {
+    const el = document.createElement('div');
+    el.className = 'saved-meal-btn';
+    el.style.marginBottom = '6px';
+    el.innerHTML = `<div><div class="saved-meal-name">${name}</div><div class="saved-meal-stats">Logged ${count} time${count>1?'s':''}</div></div>`;
+    topList.appendChild(el);
+  });
+
+  // Draw charts
+  drawLineChart('calChart', 'calChartEmpty', dates, dates.map(d=>byDate[d].cal), goals.cal, '#f4c542', 'cal');
+  drawLineChart('protChart', 'protChartEmpty', dates, dates.map(d=>byDate[d].prot), goals.prot, '#5bdd8b', 'g');
+
+  // Weight chart from fitbit
+  const weightDates = fitbitRows.filter(r=>r.weight>0).map(r=>r.log_date);
+  const weightVals  = fitbitRows.filter(r=>r.weight>0).map(r=>r.weight);
+  if (weightDates.length >= 2) {
+    document.getElementById('trendWeightChart').style.display = 'block';
+    document.getElementById('trendWeightEmpty').style.display = 'none';
+    drawLineChart('trendWeightChart', 'trendWeightEmpty', weightDates, weightVals, null, '#a78bfa', 'lbs', false);
+  } else {
+    document.getElementById('trendWeightChart').style.display = 'none';
+    document.getElementById('trendWeightEmpty').style.display = 'block';
+  }
+}
+
+function drawLineChart(canvasId, emptyId, dates, values, goal, color, unit, showGoal=true) {
+  const canvas = document.getElementById(canvasId);
+  const emptyEl = document.getElementById(emptyId);
+  if (!canvas) return;
+
+  if (dates.length < 2) {
+    canvas.style.display = 'none';
+    if (emptyEl) emptyEl.style.display = 'block';
+    return;
+  }
+  canvas.style.display = 'block';
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width  = canvas.offsetWidth * dpr;
+  canvas.height = 160 * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = canvas.offsetWidth, H = 160;
+  ctx.clearRect(0,0,W,H);
+
+  const pad = {t:10,r:10,b:28,l:44};
+  const cW = W-pad.l-pad.r, cH = H-pad.t-pad.b;
+
+  const minV = Math.min(...values) * 0.9;
+  const maxV = Math.max(Math.max(...values) * 1.1, goal ? goal * 1.1 : Math.max(...values) * 1.1);
+
+  const xP = i => pad.l + (i/(dates.length-1)) * cW;
+  const yP = v => pad.t + (1-(v-minV)/(maxV-minV)) * cH;
+
+  // Grid lines
+  [0,0.5,1].forEach(t => {
+    const y = pad.t + t*cH;
+    const val = Math.round(maxV - t*(maxV-minV));
+    ctx.strokeStyle='#2a3040'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cW,y); ctx.stroke();
+    ctx.fillStyle='#7a8299'; ctx.font=`10px Inter`; ctx.textAlign='right';
+    ctx.fillText(val+(unit==='lbs'?'':unit==='cal'?'':unit), pad.l-4, y+4);
+  });
+
+  // Goal line
+  if (showGoal && goal) {
+    const gy = yP(goal);
+    ctx.strokeStyle = color+'66'; ctx.lineWidth = 1; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(pad.l,gy); ctx.lineTo(pad.l+cW,gy); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = color+'99'; ctx.font='9px Inter'; ctx.textAlign='left';
+    ctx.fillText('Goal', pad.l+2, gy-3);
+  }
+
+  // Area fill
+  ctx.beginPath();
+  ctx.moveTo(xP(0), yP(values[0]));
+  values.forEach((v,i) => { if(i>0) ctx.lineTo(xP(i), yP(v)); });
+  ctx.lineTo(xP(values.length-1), pad.t+cH);
+  ctx.lineTo(xP(0), pad.t+cH);
+  ctx.closePath();
+  ctx.fillStyle = color+'22';
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+  values.forEach((v,i) => { i===0 ? ctx.moveTo(xP(i),yP(v)) : ctx.lineTo(xP(i),yP(v)); });
+  ctx.stroke();
+
+  // Dots — color by above/below goal
+  values.forEach((v,i) => {
+    ctx.beginPath();
+    ctx.arc(xP(i), yP(v), 3, 0, Math.PI*2);
+    const dotColor = (showGoal && goal) ? (v >= goal*0.8 && v <= goal*1.15 ? '#5bdd8b' : '#f77f6e') : color;
+    ctx.fillStyle = dotColor;
+    ctx.fill();
+  });
+
+  // Date labels
+  ctx.fillStyle='#7a8299'; ctx.font='10px Inter'; ctx.textAlign='center';
+  const fmt = d => { const [,m,day]=d.split('-'); return `${m}/${day}`; };
+  ctx.fillText(fmt(dates[0]), xP(0), H-8);
+  if (dates.length > 2) ctx.fillText(fmt(dates[Math.floor(dates.length/2)]), xP(Math.floor(dates.length/2)), H-8);
+  ctx.fillText(fmt(dates[dates.length-1]), xP(dates.length-1), H-8);
+}
+
+
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
 function clearToday(){if(confirm('Clear all meals today?')){dayLog=[];renderAll();showToast('Cleared');}}
 

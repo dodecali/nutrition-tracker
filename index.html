@@ -222,14 +222,12 @@
           <div id="lookupError" style="display:none;margin-top:8px;font-size:12px;color:var(--accent3)"></div>
         </div>
         <!-- BARCODE SCANNER MODAL -->
-        <div id="scannerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:200;flex-direction:column;align-items:center;justify-content:center">
-          <div style="color:var(--text);font-size:14px;margin-bottom:16px;font-weight:600">Point camera at barcode</div>
-          <div style="position:relative;width:280px;height:280px;border:2px solid var(--accent);border-radius:12px;overflow:hidden">
-            <video id="scannerVideo" style="width:100%;height:100%;object-fit:cover" playsinline autoplay></video>
-            <div style="position:absolute;inset:0;border:40px solid rgba(0,0,0,0.4)"></div>
-            <div style="position:absolute;top:50%;left:10%;right:10%;height:2px;background:var(--accent);transform:translateY(-50%);opacity:0.8"></div>
-          </div>
-          <div id="scannerStatus" style="color:var(--muted);font-size:12px;margin-top:12px;font-family:'DM Mono',monospace;text-align:center;max-width:280px">Scanning...</div>
+        <div id="scannerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:200;flex-direction:column;align-items:center;justify-content:center;padding:24px">
+          <div style="color:var(--text);font-size:16px;font-weight:600;margin-bottom:16px;text-align:center">Scan a Barcode</div>
+          <div style="color:var(--muted);font-size:13px;margin-bottom:20px;text-align:center;line-height:1.6">Take a photo of the barcode<br>or upload a barcode image</div>
+          <input type="file" id="barcodeFileInput" accept="image/*" capture="environment" style="display:none" onchange="handleBarcodeImage(event)">
+          <button onclick="document.getElementById('barcodeFileInput').click()" style="background:var(--accent);color:#0f1117;border:none;border-radius:10px;padding:14px 28px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:12px;width:100%;max-width:280px">📷 Open Camera</button>
+          <div id="scannerStatus" style="color:var(--muted);font-size:12px;margin-top:8px;font-family:'DM Mono',monospace;text-align:center;min-height:20px"></div>
           <button onclick="closeScanner()" style="margin-top:16px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 24px;cursor:pointer;font-family:'Inter',sans-serif">Cancel</button>
         </div>
         <div class="form-group"><label>Meal Name</label><input type="text" id="q-name" placeholder="e.g. Everything Bagel with eggs"></div>
@@ -1251,49 +1249,43 @@ function drawLineChart(canvasId, emptyId, dates, values, goal, color, unit, show
 }
 
 
-// ── BARCODE SCANNER (ZXing — works on iPhone Safari) ──────────────────────
-let zxingReader = null;
-let scannerActive = false;
-
-async function openScanner() {
-  const modal = document.getElementById('scannerModal');
-  modal.style.display = 'flex';
-  const statusEl = document.getElementById('scannerStatus');
-  statusEl.textContent = 'Starting camera...';
-  statusEl.style.color = 'var(--muted)';
-
-  try {
-    if (!zxingReader) {
-      zxingReader = new ZXing.BrowserMultiFormatReader();
-    }
-    const devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
-    const device = devices.find(d =>
-      d.label.toLowerCase().includes('back') ||
-      d.label.toLowerCase().includes('rear') ||
-      d.label.toLowerCase().includes('environment')
-    ) || devices[devices.length - 1];
-
-    statusEl.textContent = 'Point at barcode — scanning...';
-    scannerActive = true;
-
-    await zxingReader.decodeFromVideoDevice(device?.deviceId, 'scannerVideo', async (result, err) => {
-      if (result && scannerActive) {
-        scannerActive = false;
-        statusEl.textContent = 'Found barcode — looking up...';
-        statusEl.style.color = 'var(--accent)';
-        await lookupBarcode(result.getText());
-      }
-    });
-  } catch(e) {
-    statusEl.textContent = 'Camera error — please allow camera access and try again.';
-    statusEl.style.color = 'var(--accent3)';
-  }
+// ── BARCODE SCANNER (Native camera — works on all iPhones) ────────────────
+function openScanner() {
+  document.getElementById('scannerModal').style.display = 'flex';
+  document.getElementById('scannerStatus').textContent = '';
 }
 
 function closeScanner() {
-  scannerActive = false;
-  if (zxingReader) { try { zxingReader.reset(); } catch(e) {} }
   document.getElementById('scannerModal').style.display = 'none';
+  document.getElementById('scannerStatus').textContent = '';
+  document.getElementById('barcodeFileInput').value = '';
+}
+
+async function handleBarcodeImage(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById('scannerStatus');
+  statusEl.textContent = 'Reading barcode...';
+  statusEl.style.color = 'var(--muted)';
+
+  try {
+    // Use ZXing to decode from image file
+    const reader = new ZXing.BrowserMultiFormatReader();
+    const imgUrl = URL.createObjectURL(file);
+    const result = await reader.decodeFromImageUrl(imgUrl);
+    URL.revokeObjectURL(imgUrl);
+
+    if (result) {
+      statusEl.textContent = 'Found barcode — looking up...';
+      statusEl.style.color = 'var(--accent)';
+      await lookupBarcode(result.getText());
+    }
+  } catch(e) {
+    // ZXing failed — try sending to AI for manual lookup
+    statusEl.textContent = 'Could not read barcode. Try typing the number manually in AI Lookup.';
+    statusEl.style.color = 'var(--accent3)';
+  }
 }
 
 async function lookupBarcode(barcode) {

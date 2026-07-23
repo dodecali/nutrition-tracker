@@ -108,6 +108,24 @@
 </head>
 <body>
 
+<!-- PROFILE MODAL -->
+<div id="profileModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:300;flex-direction:column;align-items:center;justify-content:center;padding:24px">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:32px;width:100%;max-width:320px;text-align:center">
+    <h2 style="font-family:'Fraunces',serif;font-size:1.8rem;font-weight:300;margin-bottom:8px">Fork <span style="color:var(--accent);font-style:italic">Yeah!</span></h2>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:28px">Who's tracking today?</p>
+    <div style="display:flex;gap:12px;justify-content:center">
+      <button onclick="setUser('daniel')" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 32px;cursor:pointer;text-align:center;transition:border-color 0.2s;flex:1" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:32px;margin-bottom:8px">🥣</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text)">Daniel</div>
+      </button>
+      <button onclick="setUser('james')" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 32px;cursor:pointer;text-align:center;transition:border-color 0.2s;flex:1" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:32px;margin-bottom:8px">🏃</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text)">James</div>
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="nav">
   <button class="nav-btn active" onclick="showPage('tracker')">📊 Track</button>
   <button class="nav-btn" onclick="showPage('meals')">🥗 Meals</button>
@@ -447,7 +465,8 @@
     <h3>About</h3>
     <p style="font-size:13px;color:var(--muted);line-height:1.6">Data syncs to Supabase cloud — accessible on any device.</p>
     <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="submit-btn secondary" style="font-size:12px" onclick="clearToday()">Clear Today</button>
+      <button class="submit-btn secondary" style="font-size:12px" onclick="switchProfile()">Switch Profile</button>
+      <button class="submit-btn secondary" style="font-size:12px;border-color:var(--accent3);color:var(--accent3)" onclick="clearToday()">Clear Today</button>
     </div>
   </div>
 </div>
@@ -499,7 +518,7 @@ async function loadDayLog() {
   try {
     console.log('Supabase URL:', SUPABASE_URL);
     console.log('Supabase KEY prefix:', SUPABASE_KEY.substring(0, 20));
-    const {data, error} = await sb.from('nutrition_log').select('*').eq('log_date', dateKey(currentDate)).order('created_at');
+    const {data, error} = await sb.from('nutrition_log').select('*').eq('log_date', dateKey(currentDate)).eq('user_id', currentUser).order('created_at');
     console.log('Supabase data:', data);
     console.log('Supabase error:', error);
     if (error) throw error;
@@ -508,21 +527,22 @@ async function loadDayLog() {
   } catch(e) {
     console.log('Supabase catch error:', e.message, e);
     setSyncStatus('Offline — changes save locally', 'error');
-    dayLog = JSON.parse(localStorage.getItem('log_'+dateKey(currentDate)) || '[]');
+    dayLog = JSON.parse(localStorage.getItem('log_'+currentUser+'_'+dateKey(currentDate)) || '[]');
   }
 }
 
 async function addLogEntry(meal) {
-  const entry = {log_date: dateKey(currentDate), meal_data: meal};
+  const entry = {log_date: dateKey(currentDate), meal_data: meal, user_id: currentUser};
   try {
     const {data,error} = await sb.from('nutrition_log').insert(entry).select();
     if (error) throw error;
     dayLog.push(data[0]);
   } catch(e) {
-    const local = JSON.parse(localStorage.getItem('log_'+dateKey(currentDate)) || '[]');
+    const key = 'log_'+currentUser+'_'+dateKey(currentDate);
+    const local = JSON.parse(localStorage.getItem(key) || '[]');
     const tmp = {...entry, id: Date.now()};
     local.push(tmp); dayLog.push(tmp);
-    localStorage.setItem('log_'+dateKey(currentDate), JSON.stringify(local));
+    localStorage.setItem(key, JSON.stringify(local));
   }
   renderAll();
   showToast('Added!');
@@ -541,7 +561,7 @@ async function removeLogEntry(id) {
 
 async function loadSavedMeals() {
   try {
-    const {data,error} = await sb.from('saved_meals').select('*').order('created_at');
+    const {data,error} = await sb.from('saved_meals').select('*').eq('user_id', currentUser).order('created_at');
     if (error) throw error;
     if (data && data.length > 0) {
       savedMeals = data.map(r => ({...r.meal_data, _db_id: r.id}));
@@ -549,29 +569,30 @@ async function loadSavedMeals() {
       await seedDefaultMeals();
     }
   } catch(e) {
-    savedMeals = JSON.parse(localStorage.getItem('saved_meals') || JSON.stringify(DEFAULT_MEALS));
+    savedMeals = JSON.parse(localStorage.getItem('saved_meals_'+currentUser) || JSON.stringify(PROFILES[currentUser].defaultMeals));
   }
 }
 
 async function seedDefaultMeals() {
   try {
-    for (const m of DEFAULT_MEALS) {
-      const {data} = await sb.from('saved_meals').insert({meal_data: m}).select();
+    const defaults = PROFILES[currentUser].defaultMeals;
+    for (const m of defaults) {
+      const {data} = await sb.from('saved_meals').insert({meal_data: m, user_id: currentUser}).select();
       if (data) m._db_id = data[0].id;
     }
-    savedMeals = [...DEFAULT_MEALS];
+    savedMeals = [...defaults];
   } catch(e) {}
 }
 
 async function saveMealToDB(meal) {
   try {
-    const {data,error} = await sb.from('saved_meals').insert({meal_data: meal}).select();
+    const {data,error} = await sb.from('saved_meals').insert({meal_data: meal, user_id: currentUser}).select();
     if (error) throw error;
     meal._db_id = data[0].id;
     savedMeals.push(meal);
   } catch(e) {
     savedMeals.push(meal);
-    localStorage.setItem('saved_meals', JSON.stringify(savedMeals));
+    localStorage.setItem('saved_meals_'+currentUser, JSON.stringify(savedMeals));
   }
 }
 
@@ -580,15 +601,15 @@ async function deleteMealFromDB(dbId) {
     await sb.from('saved_meals').delete().eq('id', dbId);
   } catch(e) {}
   savedMeals = savedMeals.filter(m => m._db_id !== dbId);
-  localStorage.setItem('saved_meals', JSON.stringify(savedMeals));
+  localStorage.setItem('saved_meals_'+currentUser, JSON.stringify(savedMeals));
 }
 
 async function loadFitbitDay() {
   try {
-    const {data} = await sb.from('fitbit_data').select('*').eq('log_date', dateKey(currentDate)).single();
+    const {data} = await sb.from('fitbit_data').select('*').eq('log_date', dateKey(currentDate)).eq('user_id', currentUser).single();
     fitbitDay = data ? {steps:data.steps||0, burned:data.burned||0, weight:data.weight||0} : {steps:0,burned:0,weight:0};
   } catch(e) {
-    fitbitDay = JSON.parse(localStorage.getItem('fitbit_'+dateKey(currentDate)) || '{"steps":0,"burned":0,"weight":0}');
+    fitbitDay = JSON.parse(localStorage.getItem('fitbit_'+currentUser+'_'+dateKey(currentDate)) || '{"steps":0,"burned":0,"weight":0}');
   }
   document.getElementById('fb-steps').value  = fitbitDay.steps  || '';
   document.getElementById('fb-burned').value = fitbitDay.burned || '';
@@ -602,9 +623,9 @@ async function saveFitbitDay() {
   const weight = +document.getElementById('fb-weight').value || 0;
   fitbitDay = {steps, burned, weight};
   try {
-    await sb.from('fitbit_data').upsert({log_date: dateKey(currentDate), steps, burned, weight}, {onConflict:'log_date'});
+    await sb.from('fitbit_data').upsert({log_date: dateKey(currentDate), steps, burned, weight, user_id: currentUser}, {onConflict:'log_date,user_id'});
   } catch(e) {
-    localStorage.setItem('fitbit_'+dateKey(currentDate), JSON.stringify(fitbitDay));
+    localStorage.setItem('fitbit_'+currentUser+'_'+dateKey(currentDate), JSON.stringify(fitbitDay));
   }
   updateFitbitDisplay();
   renderAll();
@@ -612,11 +633,12 @@ async function saveFitbitDay() {
 
 async function loadGoals() {
   try {
-    const {data} = await sb.from('fitbit_data').select('goals').eq('log_date','__goals__').single();
-    if (data?.goals) goals = {...DEFAULT_GOALS, ...data.goals};
+    const {data} = await sb.from('fitbit_data').select('goals').eq('log_date','__goals__').eq('user_id', currentUser).single();
+    if (data?.goals) goals = {...PROFILES[currentUser].goals, ...data.goals};
+    else goals = {...PROFILES[currentUser].goals};
   } catch(e) {
-    const saved = localStorage.getItem('goals');
-    if (saved) goals = JSON.parse(saved);
+    const saved = localStorage.getItem('goals_'+currentUser);
+    goals = saved ? JSON.parse(saved) : {...PROFILES[currentUser].goals};
   }
 }
 
@@ -624,15 +646,59 @@ async function saveGoalsToDB() {
   const map = {cal:'g-cal',prot:'g-prot',fib:'g-fib',fat:'g-fat',carb:'g-carb',sugar:'g-sugar',satfat:'g-satfat',sodium:'g-sodium',omega3:'g-omega3',pot:'g-pot',calcium:'g-calcium',iron:'g-iron',mag:'g-mag',vitc:'g-vitc',vitd:'g-vitd',b12:'g-b12',zinc:'g-zinc',folate:'g-folate',selenium:'g-selenium'};
   Object.entries(map).forEach(([k,id]) => { const v=parseFloat(document.getElementById(id).value); if(!isNaN(v)) goals[k]=v; });
   try {
-    await sb.from('fitbit_data').upsert({log_date:'__goals__', goals}, {onConflict:'log_date'});
+    await sb.from('fitbit_data').upsert({log_date:'__goals__', goals, user_id: currentUser}, {onConflict:'log_date,user_id'});
   } catch(e) {
-    localStorage.setItem('goals', JSON.stringify(goals));
+    localStorage.setItem('goals_'+currentUser, JSON.stringify(goals));
   }
   showToast('Goals saved!');
   renderAll();
 }
 
-// ── NAV ────────────────────────────────────────────────────────────────────
+// ── PROFILES ───────────────────────────────────────────────────────────────
+const PROFILES = {
+  daniel: {
+    name: 'Daniel',
+    emoji: '🥣',
+    goals: {cal:2050,prot:102,fib:38,fat:62,carb:275,sugar:25,satfat:22,sodium:2300,omega3:1.6,pot:3400,calcium:1000,iron:8,mag:420,vitc:90,vitd:17.5,b12:2.4,zinc:11,folate:400,selenium:55},
+    defaultMeals: DEFAULT_MEALS
+  },
+  james: {
+    name: 'James',
+    emoji: '🏃',
+    goals: {cal:1800,prot:115,fib:38,fat:55,carb:185,sugar:25,satfat:18,sodium:2300,omega3:1.6,pot:3400,calcium:1000,iron:8,mag:420,vitc:90,vitd:17.5,b12:2.4,zinc:11,folate:400,selenium:55},
+    defaultMeals: [
+      {id:'j1',name:"Chobani Greek Yogurt + Kind Granola + Chia",color:"#5bdd8b",cal:373,prot:23,carb:42,fib:8,fat:12,sugar:12,sodium:95,satfat:1.5,omega3:1.2,pot:350,calcium:250,iron:1.5,mag:60,vitc:2,vitd:0,b12:0.8,zinc:1.2,folate:20,selenium:8},
+      {id:'j2',name:"Cantaloupe (165g)",color:"#f4c542",cal:56,prot:1.4,carb:13,fib:0.8,fat:0.3,sugar:12,sodium:25,satfat:0,omega3:0,pot:390,calcium:14,iron:0.3,mag:16,vitc:40,vitd:0,b12:0,zinc:0.2,folate:21,selenium:0.4},
+      {id:'j3',name:"2 Hard Boiled Eggs",color:"#f77f6e",cal:140,prot:12,carb:1,fib:0,fat:10,sugar:0,sodium:130,satfat:3,omega3:0.1,pot:130,calcium:50,iron:2,mag:10,vitc:0,vitd:2,b12:1.0,zinc:1.2,folate:44,selenium:30},
+      {id:'j4',name:"Greek Yogurt (1 cup)",color:"#34d399",cal:130,prot:20,carb:9,fib:0,fat:0,sugar:6,sodium:65,satfat:0,omega3:0,pot:240,calcium:200,iron:0,mag:20,vitc:0,vitd:0,b12:1.2,zinc:1.0,folate:14,selenium:9},
+      {id:'j5',name:"Amy's Lentil Soup (1 can)",color:"#4cc9f0",cal:150,prot:9,carb:27,fib:5,fat:2,sugar:3,sodium:680,satfat:0,omega3:0,pot:480,calcium:40,iron:3,mag:30,vitc:2,vitd:0,b12:0,zinc:0,folate:0,selenium:0},
+    ]
+  }
+};
+
+let currentUser = localStorage.getItem('fork-yeah-user') || null;
+
+function setUser(userId) {
+  currentUser = userId;
+  localStorage.setItem('fork-yeah-user', userId);
+  document.getElementById('profileModal').style.display = 'none';
+  goals = {...PROFILES[userId].goals};
+  init();
+}
+
+function switchProfile() {
+  currentUser = null;
+  localStorage.removeItem('fork-yeah-user');
+  document.getElementById('profileModal').style.display = 'flex';
+}
+
+function showProfileModal() {
+  if (!currentUser) {
+    document.getElementById('profileModal').style.display = 'flex';
+  }
+}
+
+
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -998,8 +1064,8 @@ async function renderTrends() {
 
   let logs = [], fitbitRows = [];
   try {
-    const {data: logData} = await sb.from('nutrition_log').select('*').gte('log_date', startKey).lte('log_date', endKey).order('log_date');
-    const {data: fbData} = await sb.from('fitbit_data').select('*').gte('log_date', startKey).lte('log_date', endKey).neq('log_date','__goals__').order('log_date');
+    const {data: logData} = await sb.from('nutrition_log').select('*').gte('log_date', startKey).lte('log_date', endKey).eq('user_id', currentUser).order('log_date');
+    const {data: fbData} = await sb.from('fitbit_data').select('*').gte('log_date', startKey).lte('log_date', endKey).eq('user_id', currentUser).neq('log_date','__goals__').order('log_date');
     logs = logData || [];
     fitbitRows = fbData || [];
   } catch(e) {}
@@ -1181,6 +1247,11 @@ function clearToday(){if(confirm('Clear all meals today?')){dayLog=[];renderAll(
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 async function init(){
+  if (!currentUser) {
+    showProfileModal();
+    return;
+  }
+  goals = {...PROFILES[currentUser].goals};
   updateDateLabel();
   await Promise.all([loadGoals(), loadSavedMeals(), loadDayLog(), loadFitbitDay()]);
   populateGoalFields();

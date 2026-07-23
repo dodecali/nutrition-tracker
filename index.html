@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fork Yeah!</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&family=Inter:wght@400;500;600&display=swap');
   :root {
@@ -1241,6 +1242,97 @@ function drawLineChart(canvasId, emptyId, dates, values, goal, color, unit, show
   ctx.fillText(fmt(dates[dates.length-1]), xP(dates.length-1), H-8);
 }
 
+
+// ── BARCODE SCANNER (ZXing — works on iPhone Safari) ──────────────────────
+let zxingReader = null;
+let scannerActive = false;
+
+async function openScanner() {
+  const modal = document.getElementById('scannerModal');
+  modal.style.display = 'flex';
+  const statusEl = document.getElementById('scannerStatus');
+  statusEl.textContent = 'Starting camera...';
+  statusEl.style.color = 'var(--muted)';
+
+  try {
+    if (!zxingReader) {
+      zxingReader = new ZXing.BrowserMultiFormatReader();
+    }
+    const devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
+    const device = devices.find(d =>
+      d.label.toLowerCase().includes('back') ||
+      d.label.toLowerCase().includes('rear') ||
+      d.label.toLowerCase().includes('environment')
+    ) || devices[devices.length - 1];
+
+    statusEl.textContent = 'Point at barcode — scanning...';
+    scannerActive = true;
+
+    await zxingReader.decodeFromVideoDevice(device?.deviceId, 'scannerVideo', async (result, err) => {
+      if (result && scannerActive) {
+        scannerActive = false;
+        statusEl.textContent = 'Found barcode — looking up...';
+        statusEl.style.color = 'var(--accent)';
+        await lookupBarcode(result.getText());
+      }
+    });
+  } catch(e) {
+    statusEl.textContent = 'Camera error — please allow camera access and try again.';
+    statusEl.style.color = 'var(--accent3)';
+  }
+}
+
+function closeScanner() {
+  scannerActive = false;
+  if (zxingReader) { try { zxingReader.reset(); } catch(e) {} }
+  document.getElementById('scannerModal').style.display = 'none';
+}
+
+async function lookupBarcode(barcode) {
+  if (!barcode) return;
+  document.getElementById('scannerStatus').textContent = 'Looking up product...';
+  try {
+    const r = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+    const d = await r.json();
+    if (d.status !== 1 || !d.product) {
+      document.getElementById('scannerStatus').textContent = 'Product not found — try AI Lookup instead.';
+      document.getElementById('scannerStatus').style.color = 'var(--accent3)';
+      return;
+    }
+    const p = d.product, n = p.nutriments || {};
+    const sg = parseFloat(p.serving_size) || 100;
+    const f = isNaN(sg) ? 1 : sg / 100;
+    const nut = {
+      name:     p.product_name || p.brands || 'Scanned Product',
+      cal:      Math.round((n['energy-kcal_100g'] || n['energy-kcal'] || 0) * f),
+      prot:     +((n.proteins_100g || 0) * f).toFixed(1),
+      carb:     +((n.carbohydrates_100g || 0) * f).toFixed(1),
+      fib:      +((n.fiber_100g || 0) * f).toFixed(1),
+      fat:      +((n.fat_100g || 0) * f).toFixed(1),
+      sugar:    +((n.sugars_100g || 0) * f).toFixed(1),
+      sodium:   Math.round((n.sodium_100g || 0) * f * 1000),
+      satfat:   +((n['saturated-fat_100g'] || 0) * f).toFixed(1),
+      pot:      Math.round((n.potassium_100g || 0) * f * 1000),
+      calcium:  Math.round((n.calcium_100g || 0) * f * 1000),
+      iron:     +((n.iron_100g || 0) * f * 1000).toFixed(1),
+      mag:      Math.round((n.magnesium_100g || 0) * f * 1000),
+      vitc:     Math.round((n['vitamin-c_100g'] || 0) * f * 1000),
+      vitd:     +((n['vitamin-d_100g'] || 0) * f * 1000000).toFixed(1),
+      omega3:   +((n['omega-3-fat_100g'] || 0) * f).toFixed(2),
+      b12:      +((n['vitamin-b12_100g'] || 0) * f * 1000000).toFixed(1),
+      zinc:     +((n.zinc_100g || 0) * f * 1000).toFixed(1),
+      folate:   Math.round((n.folate_100g || 0) * f * 1000000),
+      selenium: +((n.selenium_100g || 0) * f * 1000000).toFixed(1),
+    };
+    closeScanner();
+    fillFields(nut, nut.name);
+    switchAddTab('quick');
+    showToast('Found: ' + nut.name);
+  } catch(e) {
+    document.getElementById('scannerStatus').textContent = 'Lookup failed. Check your connection.';
+    document.getElementById('scannerStatus').style.color = 'var(--accent3)';
+  }
+}
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
 function clearToday(){if(confirm('Clear all meals today?')){dayLog=[];renderAll();showToast('Cleared');}}

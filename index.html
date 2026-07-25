@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fork Yeah!</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&family=Inter:wght@400;500;600&display=swap');
   :root {
@@ -100,6 +100,10 @@
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--accent);color:#0f1117;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:100;}
   .toast.show{opacity:1;}
   .hidden{display:none!important;}
+  #addSavedList::-webkit-scrollbar { width: 4px; }
+  #addSavedList::-webkit-scrollbar-track { background: transparent; }
+  #addSavedList::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  #addSavedList::-webkit-scrollbar-thumb:hover { background: var(--muted); }
   .trend-range-btn{padding:6px 14px;border:1px solid var(--border);border-radius:20px;background:var(--card);color:var(--muted);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;font-family:'Inter',sans-serif;transition:all 0.2s;}
   .trend-range-btn.active{background:var(--accent);color:#0f1117;border-color:var(--accent);}
   .sync-indicator{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;text-align:center;margin-bottom:12px;min-height:14px;}
@@ -138,13 +142,33 @@
 <div id="page-tracker" class="page active">
   <header>
     <h1>Fork <span>Yeah!</span></h1>
-    <div class="date-bar">
-      <button onclick="changeDate(-1)">‹</button>
-      <span class="date-label" id="dateLabel"></span>
-      <button onclick="changeDate(1)">›</button>
+    <!-- PROMINENT DATE -->
+    <div style="text-align:center;margin-top:12px">
+      <div id="dateDayName" style="font-family:'DM Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--muted)"></div>
+      <div id="dateFull" style="font-family:'Fraunces',serif;font-size:1.6rem;font-weight:600;color:var(--text);line-height:1.2;margin-top:2px"></div>
+      <div class="date-bar" style="margin-top:8px">
+        <button onclick="changeDate(-1)">‹</button>
+        <span class="date-label" id="dateLabel"></span>
+        <button onclick="changeDate(1)">›</button>
+      </div>
+    </div>
+    <!-- DAILY LOG BUTTON -->
+    <div style="text-align:center;margin-top:12px">
+      <button onclick="showDailyLog()" style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:6px 18px;font-size:12px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace">📋 View Daily Log</button>
     </div>
   </header>
   <div class="sync-indicator" id="syncIndicator"></div>
+
+  <!-- DAILY LOG MODAL -->
+  <div id="dailyLogModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;flex-direction:column;padding:24px;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-family:'Fraunces',serif;font-size:1.4rem;font-weight:300">Daily <span style="color:var(--accent);font-style:italic">Log</span></div>
+      <button onclick="closeDailyLog()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 14px;cursor:pointer;font-family:'Inter',sans-serif">Close</button>
+    </div>
+    <div id="dailyLogDate" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px"></div>
+    <div id="dailyLogList" style="display:flex;flex-direction:column;gap:8px"></div>
+    <div id="dailyLogTotal" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-top:16px"></div>
+  </div>
 
   <div class="goals-grid">
     <div class="goal-card calories"><div class="goal-label">Calories</div><div class="goal-val" id="val-cal">0</div><div class="goal-sub" id="sub-cal"></div></div>
@@ -206,7 +230,9 @@
       <button class="tab active" onclick="switchAddTab('saved')">Saved Meals</button>
       <button class="tab" onclick="switchAddTab('quick')">✦ AI Lookup</button>
     </div>
-    <div id="addSavedTab"><div class="saved-meals-grid" id="addSavedList"></div></div>
+    <div id="addSavedTab">
+      <div id="addSavedList" style="max-height:392px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:2px"></div>
+    </div>
     <div id="addQuickTab" class="hidden">
       <div class="manual-form">
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px">
@@ -222,13 +248,12 @@
           <div id="lookupError" style="display:none;margin-top:8px;font-size:12px;color:var(--accent3)"></div>
         </div>
         <!-- BARCODE SCANNER MODAL -->
-        <div id="scannerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:200;flex-direction:column;align-items:center;justify-content:center;padding:24px">
-          <div style="color:var(--text);font-size:16px;font-weight:600;margin-bottom:16px;text-align:center">Scan a Barcode</div>
-          <div style="color:var(--muted);font-size:13px;margin-bottom:20px;text-align:center;line-height:1.6">Take a photo of the barcode<br>or upload a barcode image</div>
-          <input type="file" id="barcodeFileInput" accept="image/*" capture="environment" style="display:none" onchange="handleBarcodeImage(event)">
-          <button onclick="document.getElementById('barcodeFileInput').click()" style="background:var(--accent);color:#0f1117;border:none;border-radius:10px;padding:14px 28px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:12px;width:100%;max-width:280px">📷 Open Camera</button>
-          <div id="scannerStatus" style="color:var(--muted);font-size:12px;margin-top:8px;font-family:'DM Mono',monospace;text-align:center;min-height:20px"></div>
-          <button onclick="closeScanner()" style="margin-top:16px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 24px;cursor:pointer;font-family:'Inter',sans-serif">Cancel</button>
+        <div id="scannerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:200;flex-direction:column;align-items:center;justify-content:center;padding:24px">
+          <div style="color:var(--text);font-size:16px;font-weight:600;margin-bottom:12px">📷 Scan Barcode</div>
+          <div style="color:var(--muted);font-size:12px;margin-bottom:16px;text-align:center">Hold barcode steady in the frame</div>
+          <div id="qr-reader" style="width:280px;border-radius:12px;overflow:hidden;border:2px solid var(--accent)"></div>
+          <div id="scannerStatus" style="color:var(--muted);font-size:12px;margin-top:12px;font-family:'DM Mono',monospace;text-align:center;min-height:20px;max-width:280px"></div>
+          <button onclick="closeScanner()" style="margin-top:16px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 28px;cursor:pointer;font-family:'Inter',sans-serif;font-size:14px">Cancel</button>
         </div>
         <div class="form-group"><label>Meal Name</label><input type="text" id="q-name" placeholder="e.g. Everything Bagel with eggs"></div>
         <div class="form-row">
@@ -291,9 +316,84 @@
 
 <!-- MEALS PAGE -->
 <div id="page-meals" class="page">
-  <header><h1>Saved <span>Meals</span></h1></header>
+  <header>
+    <h1>Saved <span>Meals</span></h1>
+    <div id="mealsProfileBadge" style="text-align:center;margin-top:8px;font-size:12px;color:var(--muted);font-family:'DM Mono',monospace"></div>
+  </header>
+
+  <!-- EDIT MEAL MODAL -->
+  <div id="editMealModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:300;overflow-y:auto;padding:24px">
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;max-width:400px;margin:0 auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-family:'Fraunces',serif;font-size:1.2rem;font-weight:300">Edit <span style="color:var(--accent);font-style:italic">Meal</span></div>
+        <button onclick="closeEditMeal()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">×</button>
+      </div>
+      <div class="manual-form">
+        <div class="form-group"><label>Meal Name</label><input type="text" id="e-name" placeholder="Meal name"></div>
+        <div class="form-group">
+          <label>Color</label>
+          <div class="color-picker-row" id="editColorPicker">
+            <div class="color-dot selected" style="background:#5bdd8b" data-color="#5bdd8b" onclick="selectEditColor(this)"></div>
+            <div class="color-dot" style="background:#4cc9f0" data-color="#4cc9f0" onclick="selectEditColor(this)"></div>
+            <div class="color-dot" style="background:#f4c542" data-color="#f4c542" onclick="selectEditColor(this)"></div>
+            <div class="color-dot" style="background:#f77f6e" data-color="#f77f6e" onclick="selectEditColor(this)"></div>
+            <div class="color-dot" style="background:#a78bfa" data-color="#a78bfa" onclick="selectEditColor(this)"></div>
+            <div class="color-dot" style="background:#fb923c" data-color="#fb923c" onclick="selectEditColor(this)"></div>
+            <div class="color-dot" style="background:#34d399" data-color="#34d399" onclick="selectEditColor(this)"></div>
+            <div class="color-dot" style="background:#f472b6" data-color="#f472b6" onclick="selectEditColor(this)"></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Calories</label><input type="number" id="e-cal" placeholder="0"></div>
+          <div class="form-group"><label>Protein (g)</label><input type="number" id="e-prot" placeholder="0"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Carbs (g)</label><input type="number" id="e-carb" placeholder="0"></div>
+          <div class="form-group"><label>Fiber (g)</label><input type="number" id="e-fib" placeholder="0"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Fat (g)</label><input type="number" id="e-fat" placeholder="0"></div>
+          <div class="form-group"><label>Sugar (g)</label><input type="number" id="e-sugar" placeholder="0"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Sodium (mg)</label><input type="number" id="e-sodium" placeholder="0"></div>
+          <div class="form-group"><label>Sat. Fat (g)</label><input type="number" id="e-satfat" placeholder="0"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Potassium (mg)</label><input type="number" id="e-pot" placeholder="0"></div>
+          <div class="form-group"><label>Calcium (mg)</label><input type="number" id="e-calcium" placeholder="0"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Iron (mg)</label><input type="number" id="e-iron" placeholder="0" step="0.1"></div>
+          <div class="form-group"><label>Magnesium (mg)</label><input type="number" id="e-mag" placeholder="0"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Vitamin C (mg)</label><input type="number" id="e-vitc" placeholder="0"></div>
+          <div class="form-group"><label>Vitamin D (mcg)</label><input type="number" id="e-vitd" placeholder="0" step="0.1"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Omega-3 (g)</label><input type="number" id="e-omega3" placeholder="0" step="0.1"></div>
+          <div class="form-group"><label>B12 (mcg)</label><input type="number" id="e-b12" placeholder="0" step="0.1"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Zinc (mg)</label><input type="number" id="e-zinc" placeholder="0" step="0.1"></div>
+          <div class="form-group"><label>Folate (mcg)</label><input type="number" id="e-folate" placeholder="0"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Selenium (mcg)</label><input type="number" id="e-selenium" placeholder="0" step="0.1"></div>
+        </div>
+        <button class="submit-btn" onclick="saveEditedMeal()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- YOUR SAVED MEALS -->
+  <div class="section-title">Your Saved Meals</div>
+  <div class="saved-meals-grid" id="manageSavedList" style="margin-bottom:20px"></div>
+
+  <!-- ADD NEW MEAL -->
   <div class="add-section">
-    <div class="section-title" style="margin-bottom:14px">Add New Saved Meal</div>
+    <div class="section-title" style="margin-bottom:14px">➕ Add New Meal</div>
     <div class="manual-form">
       <div class="form-group"><label>Meal Name</label><input type="text" id="s-name" placeholder="e.g. Greek Yogurt Parfait"></div>
       <div class="form-group">
@@ -351,8 +451,6 @@
       <button class="submit-btn" onclick="saveNewMeal()">Save Meal</button>
     </div>
   </div>
-  <div class="section-title">Your Saved Meals</div>
-  <div class="saved-meals-grid" id="manageSavedList"></div>
 </div>
 
 <!-- TRENDS PAGE -->
@@ -610,6 +708,7 @@ async function loadFitbitDay() {
   } catch(e) {
     fitbitDay = JSON.parse(localStorage.getItem('fitbit_'+currentUser+'_'+dateKey(currentDate)) || '{"steps":0,"burned":0,"weight":0}');
   }
+  // Only show values if they were actually entered (non-zero)
   document.getElementById('fb-steps').value  = fitbitDay.steps  || '';
   document.getElementById('fb-burned').value = fitbitDay.burned || '';
   document.getElementById('fb-weight').value = fitbitDay.weight || '';
@@ -715,8 +814,92 @@ function showPage(id) {
 
 // ── DATE ───────────────────────────────────────────────────────────────────
 function updateDateLabel() {
-  const isToday = dateKey(currentDate)===dateKey(new Date());
+  const now = new Date();
+  const isToday = dateKey(currentDate) === dateKey(now);
+  const isTomorrow = dateKey(currentDate) === dateKey(new Date(now.getTime() + 86400000));
+  const isYesterday = dateKey(currentDate) === dateKey(new Date(now.getTime() - 86400000));
+
+  // Small label
   document.getElementById('dateLabel').textContent = isToday ? 'Today' : currentDate.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+
+  // Day name
+  const dayName = isToday ? 'Today' : isYesterday ? 'Yesterday' : isTomorrow ? 'Tomorrow' : currentDate.toLocaleDateString('en-US',{weekday:'long'});
+  document.getElementById('dateDayName').textContent = dayName;
+
+  // Full date
+  document.getElementById('dateFull').textContent = currentDate.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+}
+
+// Auto-refresh date at midnight so the day updates correctly
+function scheduleMidnightRefresh() {
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  const msUntilMidnight = midnight - now;
+  setTimeout(async () => {
+    currentDate = new Date();
+    updateDateLabel();
+    await loadDayLog();
+    await loadFitbitDay();
+    renderAll();
+    scheduleMidnightRefresh();
+  }, msUntilMidnight);
+}
+
+// Daily log modal
+function showDailyLog() {
+  const modal = document.getElementById('dailyLogModal');
+  modal.style.display = 'flex';
+  modal.style.flexDirection = 'column';
+
+  document.getElementById('dailyLogDate').textContent =
+    currentDate.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+
+  const list = document.getElementById('dailyLogList');
+  list.innerHTML = '';
+
+  if (dayLog.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">No meals logged yet today</div>';
+    document.getElementById('dailyLogTotal').innerHTML = '';
+    return;
+  }
+
+  let totalCal=0, totalProt=0, totalCarb=0, totalFib=0, totalFat=0, totalSodium=0;
+  dayLog.forEach((e, i) => {
+    const m = e.meal_data || e;
+    totalCal    += (+m.cal    || 0);
+    totalProt   += (+m.prot   || 0);
+    totalCarb   += (+m.carb   || 0);
+    totalFib    += (+m.fib    || 0);
+    totalFat    += (+m.fat    || 0);
+    totalSodium += (+m.sodium || 0);
+
+    const time = e.created_at ? new Date(e.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
+    const el = document.createElement('div');
+    el.style.cssText = 'background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px';
+    el.innerHTML = `
+      <div style="width:28px;height:28px;border-radius:50%;background:${m.color||'#5bdd8b'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#0f1117;flex-shrink:0">${i+1}</div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:500;color:var(--text)">${m.name}</div>
+        <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px">${Math.round(m.cal||0)} cal · ${Math.round(m.prot||0)}g protein · ${Math.round(m.fib||0)}g fiber${time ? ' · '+time : ''}</div>
+      </div>`;
+    list.appendChild(el);
+  });
+
+  document.getElementById('dailyLogTotal').innerHTML = `
+    <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:10px">Daily Totals</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+      <div><div style="font-family:'Fraunces',serif;font-size:1.2rem;font-weight:600;color:var(--accent4)">${Math.round(totalCal)}</div><div style="font-size:10px;color:var(--muted)">cal</div></div>
+      <div><div style="font-family:'Fraunces',serif;font-size:1.2rem;font-weight:600;color:var(--accent)">${Math.round(totalProt)}g</div><div style="font-size:10px;color:var(--muted)">protein</div></div>
+      <div><div style="font-family:'Fraunces',serif;font-size:1.2rem;font-weight:600;color:var(--accent2)">${Math.round(totalFib)}g</div><div style="font-size:10px;color:var(--muted)">fiber</div></div>
+      <div><div style="font-family:'Fraunces',serif;font-size:1.2rem;font-weight:600;color:var(--accent4)">${Math.round(totalCarb)}g</div><div style="font-size:10px;color:var(--muted)">carbs</div></div>
+      <div><div style="font-family:'Fraunces',serif;font-size:1.2rem;font-weight:600;color:var(--accent3)">${Math.round(totalFat)}g</div><div style="font-size:10px;color:var(--muted)">fat</div></div>
+      <div><div style="font-family:'Fraunces',serif;font-size:1.2rem;font-weight:600;color:var(--muted)">${Math.round(totalSodium)}</div><div style="font-size:10px;color:var(--muted)">sodium mg</div></div>
+    </div>`;
+}
+
+function closeDailyLog() {
+  document.getElementById('dailyLogModal').style.display = 'none';
 }
 
 async function changeDate(dir) {
@@ -838,16 +1021,31 @@ function renderAll() {
 }
 
 function renderAddSavedList() {
-  const list=document.getElementById('addSavedList');
-  list.innerHTML='';
-  savedMeals.forEach(m=>{
-    const el=document.createElement('div');
-    el.className='saved-meal-btn';
-    el.innerHTML=`<div><div class="saved-meal-name" style="color:${m.color}">${m.name}</div>
-      <div class="saved-meal-stats">${m.cal} cal · ${m.prot}g protein · ${m.fib}g fiber</div></div>
+  const list = document.getElementById('addSavedList');
+  list.innerHTML = '';
+  if (savedMeals.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px">No saved meals yet — use AI Lookup and tap Add + Save</div>';
+    return;
+  }
+  savedMeals.forEach(m => {
+    const el = document.createElement('div');
+    el.className = 'saved-meal-btn';
+    el.style.flexShrink = '0';
+    el.innerHTML = `
+      <div>
+        <div class="saved-meal-name" style="color:${m.color}">${m.name}</div>
+        <div class="saved-meal-stats">${m.cal} cal · ${m.prot}g protein · ${m.fib}g fiber</div>
+      </div>
       <button class="add-btn-sm" onclick='addToLog(${JSON.stringify(m)})'>Add</button>`;
     list.appendChild(el);
   });
+  // Show count if more than 7
+  if (savedMeals.length > 7) {
+    const hint = document.createElement('div');
+    hint.style.cssText = 'text-align:center;font-size:10px;color:var(--muted);font-family:"DM Mono",monospace;padding:4px 0';
+    hint.textContent = `↕ Scroll to see all ${savedMeals.length} meals`;
+    list.appendChild(hint);
+  }
 }
 
 async function addToLog(meal) {
@@ -949,16 +1147,116 @@ async function lookupBarcode(barcode){
 
 // ── MEALS PAGE ─────────────────────────────────────────────────────────────
 function renderMealsPage(){
+  const profile = PROFILES[currentUser];
+  const badge = document.getElementById('mealsProfileBadge');
+  if (badge) badge.textContent = `${profile.emoji} ${profile.name}'s meals`;
+
   const list=document.getElementById('manageSavedList');
   list.innerHTML='';
-  savedMeals.forEach(m=>{
+  if (savedMeals.length === 0) {
+    list.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">No saved meals yet — add one below</div>';
+    return;
+  }
+  savedMeals.forEach((m)=>{
     const el=document.createElement('div');
-    el.className='saved-meal-btn';el.style.marginBottom='8px';
-    el.innerHTML=`<div><div class="saved-meal-name" style="color:${m.color}">${m.name}</div>
-      <div class="saved-meal-stats">${m.cal} cal · ${m.prot}g prot · ${m.fib}g fiber</div></div>
-      <div class="saved-meal-actions"><button class="del-btn-sm" onclick="deleteSavedMeal('${m._db_id}')">Delete</button></div>`;
+    el.className='saved-meal-btn';
+    el.style.marginBottom='10px';
+    el.style.flexDirection='column';
+    el.style.alignItems='stretch';
+    el.style.gap='10px';
+    const mJson = JSON.stringify(m).replace(/'/g, "\\'");
+    el.innerHTML=`
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:10px;height:10px;border-radius:50%;background:${m.color};flex-shrink:0"></div>
+        <div style="flex:1">
+          <div class="saved-meal-name" style="color:${m.color}">${m.name}</div>
+          <div class="saved-meal-stats">${m.cal} cal · ${m.prot}g protein · ${m.fib}g fiber · ${m.fat}g fat</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="add-btn-sm" style="flex:1" onclick="addMealAndGoTrack(${m._db_id ? `'${m._db_id}'` : 'null'}, this)">+ Today</button>
+        <button class="submit-btn secondary" style="flex:1;padding:6px 8px;font-size:12px;margin-top:0;width:auto" onclick="openEditMeal_${m._db_id ? m._db_id.replace(/-/g,'') : 'x'}()">✏️ Edit</button>
+        <button class="del-btn-sm" onclick="deleteSavedMeal('${m._db_id}')">🗑️</button>
+      </div>`;
+    // Attach edit function dynamically to avoid JSON quoting issues
+    const editFnName = `openEditMeal_${m._db_id ? m._db_id.replace(/-/g,'') : 'x'}`;
+    window[editFnName] = () => openEditMeal(m);
     list.appendChild(el);
   });
+}
+
+async function addMealAndGoTrack(dbId, btn) {
+  const meal = savedMeals.find(m => m._db_id === dbId) || savedMeals[0];
+  if (!meal) return;
+  await addLogEntry(meal);
+  showPage('tracker');
+}
+
+// ── EDIT MEAL ──────────────────────────────────────────────────────────────
+let editingMealId = null;
+let editingColor = '#5bdd8b';
+
+function openEditMeal(meal) {
+  editingMealId = meal._db_id;
+  editingColor = meal.color || '#5bdd8b';
+  const fields = ['name','cal','prot','carb','fib','fat','sugar','sodium','satfat','pot','calcium','iron','mag','vitc','vitd','omega3','b12','zinc','folate','selenium'];
+  fields.forEach(k => {
+    const el = document.getElementById('e-'+k);
+    if (el) el.value = meal[k] !== undefined ? meal[k] : (k==='name' ? '' : 0);
+  });
+  document.querySelectorAll('#editColorPicker .color-dot').forEach(d => {
+    d.classList.toggle('selected', d.dataset.color === editingColor);
+  });
+  document.getElementById('editMealModal').style.display = 'block';
+  window.scrollTo(0,0);
+}
+
+function closeEditMeal() {
+  document.getElementById('editMealModal').style.display = 'none';
+  editingMealId = null;
+}
+
+function selectEditColor(el) {
+  document.querySelectorAll('#editColorPicker .color-dot').forEach(d => d.classList.remove('selected'));
+  el.classList.add('selected');
+  editingColor = el.dataset.color;
+}
+
+async function saveEditedMeal() {
+  if (!editingMealId) return;
+  const updated = {
+    name:     document.getElementById('e-name').value.trim(),
+    color:    editingColor,
+    cal:      +document.getElementById('e-cal').value    ||0,
+    prot:     +document.getElementById('e-prot').value   ||0,
+    carb:     +document.getElementById('e-carb').value   ||0,
+    fib:      +document.getElementById('e-fib').value    ||0,
+    fat:      +document.getElementById('e-fat').value    ||0,
+    sugar:    +document.getElementById('e-sugar').value  ||0,
+    sodium:   +document.getElementById('e-sodium').value ||0,
+    satfat:   +document.getElementById('e-satfat').value ||0,
+    pot:      +document.getElementById('e-pot').value    ||0,
+    calcium:  +document.getElementById('e-calcium').value||0,
+    iron:     +document.getElementById('e-iron').value   ||0,
+    mag:      +document.getElementById('e-mag').value    ||0,
+    vitc:     +document.getElementById('e-vitc').value   ||0,
+    vitd:     +document.getElementById('e-vitd').value   ||0,
+    omega3:   +document.getElementById('e-omega3').value ||0,
+    b12:      +document.getElementById('e-b12').value    ||0,
+    zinc:     +document.getElementById('e-zinc').value   ||0,
+    folate:   +document.getElementById('e-folate').value ||0,
+    selenium: +document.getElementById('e-selenium').value||0,
+  };
+  try {
+    await sb.from('saved_meals').update({meal_data: updated}).eq('id', editingMealId);
+  } catch(e) {}
+  const idx = savedMeals.findIndex(m => m._db_id === editingMealId);
+  if (idx >= 0) savedMeals[idx] = {...savedMeals[idx], ...updated};
+  localStorage.setItem('saved_meals_'+currentUser, JSON.stringify(savedMeals));
+  closeEditMeal();
+  renderMealsPage();
+  renderAddSavedList();
+  showToast('Meal updated!');
 }
 
 async function saveNewMeal(){
@@ -1249,43 +1547,52 @@ function drawLineChart(canvasId, emptyId, dates, values, goal, color, unit, show
 }
 
 
-// ── BARCODE SCANNER (Native camera — works on all iPhones) ────────────────
-function openScanner() {
-  document.getElementById('scannerModal').style.display = 'flex';
-  document.getElementById('scannerStatus').textContent = '';
-}
+// ── BARCODE SCANNER (html5-qrcode) ────────────────────────────────────────
+let html5QrCode = null;
 
-function closeScanner() {
-  document.getElementById('scannerModal').style.display = 'none';
-  document.getElementById('scannerStatus').textContent = '';
-  document.getElementById('barcodeFileInput').value = '';
-}
-
-async function handleBarcodeImage(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
+async function openScanner() {
+  const modal = document.getElementById('scannerModal');
+  modal.style.display = 'flex';
   const statusEl = document.getElementById('scannerStatus');
-  statusEl.textContent = 'Reading barcode...';
+  statusEl.textContent = 'Starting camera...';
   statusEl.style.color = 'var(--muted)';
 
   try {
-    // Use ZXing to decode from image file
-    const reader = new ZXing.BrowserMultiFormatReader();
-    const imgUrl = URL.createObjectURL(file);
-    const result = await reader.decodeFromImageUrl(imgUrl);
-    URL.revokeObjectURL(imgUrl);
-
-    if (result) {
-      statusEl.textContent = 'Found barcode — looking up...';
-      statusEl.style.color = 'var(--accent)';
-      await lookupBarcode(result.getText());
-    }
+    html5QrCode = new Html5Qrcode('qr-reader');
+    await html5QrCode.start(
+      { facingMode: 'environment' },
+      {
+        fps: 10,
+        qrbox: { width: 240, height: 160 },
+        aspectRatio: 1.0,
+        supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+      },
+      async (decodedText) => {
+        statusEl.textContent = 'Found — looking up...';
+        statusEl.style.color = 'var(--accent)';
+        await lookupBarcode(decodedText);
+      },
+      (errorMsg) => { /* scanning — ignore per-frame errors */ }
+    );
+    statusEl.textContent = 'Hold barcode steady in the green box';
+    statusEl.style.color = 'var(--accent)';
   } catch(e) {
-    // ZXing failed — try sending to AI for manual lookup
-    statusEl.textContent = 'Could not read barcode. Try typing the number manually in AI Lookup.';
+    statusEl.textContent = 'Camera error: ' + e + ' — try allowing camera in Safari Settings';
     statusEl.style.color = 'var(--accent3)';
   }
+}
+
+async function closeScanner() {
+  if (html5QrCode) {
+    try {
+      if (html5QrCode.isScanning) await html5QrCode.stop();
+      html5QrCode.clear();
+    } catch(e) {}
+    html5QrCode = null;
+  }
+  document.getElementById('scannerModal').style.display = 'none';
+  document.getElementById('scannerStatus').textContent = '';
+  document.getElementById('qr-reader').innerHTML = '';
 }
 
 async function lookupBarcode(barcode) {
@@ -1359,12 +1666,12 @@ async function startApp() {
   updateDateLabel();
   await Promise.all([loadGoals(), loadSavedMeals(), loadDayLog(), loadFitbitDay()]);
   populateGoalFields();
-  // Force tracker page active
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-tracker').classList.add('active');
   document.querySelectorAll('.nav-btn')[0].classList.add('active');
   renderAll();
+  scheduleMidnightRefresh();
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────────

@@ -256,6 +256,19 @@
           <button onclick="closeScanner()" style="margin-top:16px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 28px;cursor:pointer;font-family:'Inter',sans-serif;font-size:14px">Cancel</button>
         </div>
         <div class="form-group"><label>Meal Name</label><input type="text" id="q-name" placeholder="e.g. Everything Bagel with eggs"></div>
+
+        <!-- SERVINGS ADJUSTER -->
+        <div id="servingsRow" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:4px">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--accent);font-family:'DM Mono',monospace;margin-bottom:8px">Servings</div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <button onclick="adjustServings(-0.5)" style="background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;width:36px;height:36px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>
+            <div style="flex:1;text-align:center">
+              <div id="servingsDisplay" style="font-family:'Fraunces',serif;font-size:1.8rem;font-weight:600;color:var(--accent);line-height:1">1</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:2px">serving(s)</div>
+            </div>
+            <button onclick="adjustServings(0.5)" style="background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;width:36px;height:36px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>
+          </div>
+        </div>
         <div class="form-row">
           <div class="form-group"><label>Calories</label><input type="number" id="q-cal" placeholder="0"></div>
           <div class="form-group"><label>Protein (g)</label><input type="number" id="q-prot" placeholder="0"></div>
@@ -299,6 +312,7 @@
           <button class="submit-btn" onclick="quickAdd()">Add to Today</button>
           <button class="submit-btn secondary" onclick="quickAddAndSave()" style="white-space:nowrap">Add + Save</button>
         </div>
+        <button onclick="clearQuickFields()" style="background:none;border:none;color:var(--accent3);font-size:12px;cursor:pointer;width:100%;margin-top:8px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px">✕ Clear All Fields</button>
       </div>
     </div>
   </div>
@@ -1055,17 +1069,49 @@ async function addToLog(meal) {
 // ── QUICK ADD ──────────────────────────────────────────────────────────────
 const QFIELDS=['q-name','q-cal','q-prot','q-carb','q-fib','q-fat','q-sugar','q-sodium','q-satfat','q-pot','q-calcium','q-iron','q-mag','q-vitc','q-vitd','q-omega3','q-b12','q-zinc','q-folate','q-selenium'];
 function getQ(){return{id:'q'+Date.now(),name:document.getElementById('q-name').value.trim(),color:'#a78bfa',cal:+document.getElementById('q-cal').value||0,prot:+document.getElementById('q-prot').value||0,carb:+document.getElementById('q-carb').value||0,fib:+document.getElementById('q-fib').value||0,fat:+document.getElementById('q-fat').value||0,sugar:+document.getElementById('q-sugar').value||0,sodium:+document.getElementById('q-sodium').value||0,satfat:+document.getElementById('q-satfat').value||0,pot:+document.getElementById('q-pot').value||0,calcium:+document.getElementById('q-calcium').value||0,iron:+document.getElementById('q-iron').value||0,mag:+document.getElementById('q-mag').value||0,vitc:+document.getElementById('q-vitc').value||0,vitd:+document.getElementById('q-vitd').value||0,omega3:+document.getElementById('q-omega3').value||0,b12:+document.getElementById('q-b12').value||0,zinc:+document.getElementById('q-zinc').value||0,folate:+document.getElementById('q-folate').value||0,selenium:+document.getElementById('q-selenium').value||0};}
-function clearQ(){QFIELDS.forEach(id=>document.getElementById(id).value='');}
 
-async function quickAdd(){const e=getQ();if(!e.name){showToast('Enter a meal name');return;}await addLogEntry(e);clearQ();switchAddTab('saved');}
-async function quickAddAndSave(){const e=getQ();if(!e.name){showToast('Enter a meal name');return;}await addLogEntry({...e});await saveMealToDB({...e});renderMealsPage();clearQ();switchAddTab('saved');showToast('Added & saved!');}
+function clearQuickFields() {
+  QFIELDS.forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  const fi = document.getElementById('foodLookupInput'); if(fi) fi.value = '';
+  const le = document.getElementById('lookupError'); if(le) le.style.display = 'none';
+  const sr = document.getElementById('servingsRow'); if(sr) sr.style.display = 'none';
+  const sd = document.getElementById('servingsDisplay'); if(sd) sd.textContent = '1';
+  baseNutrition = null; currentServings = 1;
+}
+
+async function quickAdd(){const e=getQ();if(!e.name){showToast('Enter a meal name');return;}await addLogEntry(e);clearQuickFields();switchAddTab('saved');}
+async function quickAddAndSave(){const e=getQ();if(!e.name){showToast('Enter a meal name');return;}await addLogEntry({...e});await saveMealToDB({...e});renderMealsPage();clearQuickFields();switchAddTab('saved');showToast('Added & saved!');}
+
+// ── SERVINGS ADJUSTER ──────────────────────────────────────────────────────
+let baseNutrition = null;
+let currentServings = 1;
+
+function adjustServings(delta) {
+  currentServings = Math.max(0.5, Math.round((currentServings + delta) * 2) / 2);
+  document.getElementById('servingsDisplay').textContent = currentServings % 1 === 0 ? currentServings : currentServings.toFixed(1);
+  if (!baseNutrition) return;
+  const s = currentServings;
+  const intFields = new Set(['cal','sodium','pot','calcium','mag','vitc','folate']);
+  ['cal','prot','carb','fib','fat','sugar','sodium','satfat','pot','calcium','iron','mag','vitc','vitd','omega3','b12','zinc','folate','selenium'].forEach(k => {
+    const el = document.getElementById('q-'+k);
+    if (el && baseNutrition[k] !== undefined) {
+      const val = baseNutrition[k] * s;
+      el.value = intFields.has(k) ? Math.round(val) : Math.round(val * 10) / 10;
+    }
+  });
+}
 
 // ── AI LOOKUP ──────────────────────────────────────────────────────────────
-function fillFields(n,src){
-  document.getElementById('q-name').value=n.name||src||'';
-  ['cal','prot','carb','fib','fat','sugar','sodium','satfat','pot','calcium','iron','mag','vitc','vitd','omega3','b12','zinc','folate','selenium'].forEach(k=>{
-    const el=document.getElementById('q-'+k);if(el)el.value=n[k]||0;
+function fillFields(n, src) {
+  baseNutrition = {...n};
+  currentServings = 1;
+  document.getElementById('q-name').value = n.name || src || '';
+  ['cal','prot','carb','fib','fat','sugar','sodium','satfat','pot','calcium','iron','mag','vitc','vitd','omega3','b12','zinc','folate','selenium'].forEach(k => {
+    const el = document.getElementById('q-'+k); if(el) el.value = n[k] || 0;
   });
+  const hasData = (n.cal > 0 || n.prot > 0);
+  const sr = document.getElementById('servingsRow'); if(sr) sr.style.display = hasData ? 'block' : 'none';
+  const sd = document.getElementById('servingsDisplay'); if(sd) sd.textContent = '1';
 }
 
 async function lookupFood() {

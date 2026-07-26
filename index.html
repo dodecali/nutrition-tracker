@@ -336,68 +336,78 @@
   </header>
 
   <!-- EDIT MEAL MODAL -->
-  <div id="editMealModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:300;overflow-y:auto;padding:24px">
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;max-width:400px;margin:0 auto">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <div style="font-family:'Fraunces',serif;font-size:1.2rem;font-weight:300">Edit <span style="color:var(--accent);font-style:italic">Meal</span></div>
-        <button onclick="closeEditMeal()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">×</button>
+  <div id="editMealModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:300;overflow-y:auto;-webkit-overflow-scrolling:touch">
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;max-width:420px;margin:24px auto;min-height:calc(100vh - 48px)">
+
+      <!-- HEADER -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div style="font-family:'Fraunces',serif;font-size:1.3rem;font-weight:300">Edit <span style="color:var(--accent);font-style:italic">Meal</span></div>
+        <button onclick="closeEditMeal()" style="background:none;border:none;color:var(--muted);font-size:24px;cursor:pointer;line-height:1">×</button>
       </div>
-      <div class="manual-form">
-        <div class="form-group"><label>Meal Name</label><input type="text" id="e-name" placeholder="Meal name"></div>
-        <div class="form-group">
-          <label>Color</label>
-          <div class="color-picker-row" id="editColorPicker">
-            <div class="color-dot selected" style="background:#5bdd8b" data-color="#5bdd8b" onclick="selectEditColor(this)"></div>
-            <div class="color-dot" style="background:#4cc9f0" data-color="#4cc9f0" onclick="selectEditColor(this)"></div>
-            <div class="color-dot" style="background:#f4c542" data-color="#f4c542" onclick="selectEditColor(this)"></div>
-            <div class="color-dot" style="background:#f77f6e" data-color="#f77f6e" onclick="selectEditColor(this)"></div>
-            <div class="color-dot" style="background:#a78bfa" data-color="#a78bfa" onclick="selectEditColor(this)"></div>
-            <div class="color-dot" style="background:#fb923c" data-color="#fb923c" onclick="selectEditColor(this)"></div>
-            <div class="color-dot" style="background:#34d399" data-color="#34d399" onclick="selectEditColor(this)"></div>
-            <div class="color-dot" style="background:#f472b6" data-color="#f472b6" onclick="selectEditColor(this)"></div>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Calories</label><input type="number" id="e-cal" placeholder="0"></div>
-          <div class="form-group"><label>Protein (g)</label><input type="number" id="e-prot" placeholder="0"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Carbs (g)</label><input type="number" id="e-carb" placeholder="0"></div>
-          <div class="form-group"><label>Fiber (g)</label><input type="number" id="e-fib" placeholder="0"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Fat (g)</label><input type="number" id="e-fat" placeholder="0"></div>
-          <div class="form-group"><label>Sugar (g)</label><input type="number" id="e-sugar" placeholder="0"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Sodium (mg)</label><input type="number" id="e-sodium" placeholder="0"></div>
-          <div class="form-group"><label>Sat. Fat (g)</label><input type="number" id="e-satfat" placeholder="0"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Potassium (mg)</label><input type="number" id="e-pot" placeholder="0"></div>
-          <div class="form-group"><label>Calcium (mg)</label><input type="number" id="e-calcium" placeholder="0"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Iron (mg)</label><input type="number" id="e-iron" placeholder="0" step="0.1"></div>
-          <div class="form-group"><label>Magnesium (mg)</label><input type="number" id="e-mag" placeholder="0"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Vitamin C (mg)</label><input type="number" id="e-vitc" placeholder="0"></div>
-          <div class="form-group"><label>Vitamin D (mcg)</label><input type="number" id="e-vitd" placeholder="0" step="0.1"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Omega-3 (g)</label><input type="number" id="e-omega3" placeholder="0" step="0.1"></div>
-          <div class="form-group"><label>B12 (mcg)</label><input type="number" id="e-b12" placeholder="0" step="0.1"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Zinc (mg)</label><input type="number" id="e-zinc" placeholder="0" step="0.1"></div>
-          <div class="form-group"><label>Folate (mcg)</label><input type="number" id="e-folate" placeholder="0"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Selenium (mcg)</label><input type="number" id="e-selenium" placeholder="0" step="0.1"></div>
-        </div>
-        <button class="submit-btn" onclick="saveEditedMeal()">Save Changes</button>
+
+      <!-- MEAL NAME + COLOR -->
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Meal Name</label>
+        <input type="text" id="e-name" placeholder="Meal name">
       </div>
+      <div class="form-group" style="margin-bottom:20px">
+        <label>Color</label>
+        <div class="color-picker-row" id="editColorPicker">
+          <div class="color-dot selected" style="background:#5bdd8b" data-color="#5bdd8b" onclick="selectEditColor(this)"></div>
+          <div class="color-dot" style="background:#4cc9f0" data-color="#4cc9f0" onclick="selectEditColor(this)"></div>
+          <div class="color-dot" style="background:#f4c542" data-color="#f4c542" onclick="selectEditColor(this)"></div>
+          <div class="color-dot" style="background:#f77f6e" data-color="#f77f6e" onclick="selectEditColor(this)"></div>
+          <div class="color-dot" style="background:#a78bfa" data-color="#a78bfa" onclick="selectEditColor(this)"></div>
+          <div class="color-dot" style="background:#fb923c" data-color="#fb923c" onclick="selectEditColor(this)"></div>
+          <div class="color-dot" style="background:#34d399" data-color="#34d399" onclick="selectEditColor(this)"></div>
+          <div class="color-dot" style="background:#f472b6" data-color="#f472b6" onclick="selectEditColor(this)"></div>
+        </div>
+      </div>
+
+      <!-- INGREDIENTS -->
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:10px">Ingredients</div>
+      <div id="ingredientsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+
+      <!-- ADD INGREDIENT -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:16px">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--accent2);font-family:'DM Mono',monospace;margin-bottom:8px">✦ Add Ingredient</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <input type="text" id="ing-name" placeholder="e.g. ½ cup rolled oats" style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-size:13px;font-family:'Inter',sans-serif;outline:none">
+          <button onclick="addIngredient()" id="addIngBtn" style="background:var(--accent2);color:#0f1117;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Look up</button>
+        </div>
+        <div id="ingLoading" style="display:none;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace"><span class="dot-anim">Looking up</span></div>
+        <div id="ingError" style="display:none;font-size:11px;color:var(--accent3)"></div>
+      </div>
+
+      <!-- LIVE NUTRITION TOTALS -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:10px">Live Nutrition Totals</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;margin-bottom:10px">
+          <div><div id="et-cal" style="font-family:'Fraunces',serif;font-size:1.2rem;font-weight:600;color:var(--accent4)">0</div><div style="font-size:10px;color:var(--muted)">cal</div></div>
+          <div><div id="et-prot" style="font-family:'Fraunces',serif;font-size:1.2rem;font-weight:600;color:var(--accent)">0g</div><div style="font-size:10px;color:var(--muted)">protein</div></div>
+          <div><div id="et-fib" style="font-family:'Fraunces',serif;font-size:1.2rem;font-weight:600;color:var(--accent2)">0g</div><div style="font-size:10px;color:var(--muted)">fiber</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">
+          <div>Carbs: <span id="et-carb" style="color:var(--text)">0g</span></div>
+          <div>Fat: <span id="et-fat" style="color:var(--text)">0g</span></div>
+          <div>Sugar: <span id="et-sugar" style="color:var(--text)">0g</span></div>
+          <div>Sodium: <span id="et-sodium" style="color:var(--text)">0mg</span></div>
+          <div>Sat Fat: <span id="et-satfat" style="color:var(--text)">0g</span></div>
+          <div>Potassium: <span id="et-pot" style="color:var(--text)">0mg</span></div>
+          <div>Calcium: <span id="et-calcium" style="color:var(--text)">0mg</span></div>
+          <div>Iron: <span id="et-iron" style="color:var(--text)">0mg</span></div>
+          <div>Magnesium: <span id="et-mag" style="color:var(--text)">0mg</span></div>
+          <div>Vitamin C: <span id="et-vitc" style="color:var(--text)">0mg</span></div>
+          <div>Vitamin D: <span id="et-vitd" style="color:var(--text)">0mcg</span></div>
+          <div>Omega-3: <span id="et-omega3" style="color:var(--text)">0g</span></div>
+          <div>B12: <span id="et-b12" style="color:var(--text)">0mcg</span></div>
+          <div>Zinc: <span id="et-zinc" style="color:var(--text)">0mg</span></div>
+          <div>Folate: <span id="et-folate" style="color:var(--text)">0mcg</span></div>
+          <div>Selenium: <span id="et-selenium" style="color:var(--text)">0mcg</span></div>
+        </div>
+      </div>
+
+      <button class="submit-btn" onclick="saveEditedMeal()">Save Meal</button>
     </div>
   </div>
 
@@ -1241,25 +1251,43 @@ async function addMealAndGoTrack(dbId, btn) {
 // ── EDIT MEAL ──────────────────────────────────────────────────────────────
 let editingMealId = null;
 let editingColor = '#5bdd8b';
+let editingIngredients = []; // [{name, qty, unit, nutrition: {...}}]
+
+const NUTR_KEYS = ['cal','prot','carb','fib','fat','sugar','sodium','satfat','pot','calcium','iron','mag','vitc','vitd','omega3','b12','zinc','folate','selenium'];
 
 function openEditMeal(meal) {
   editingMealId = meal._db_id;
   editingColor = meal.color || '#5bdd8b';
-  const fields = ['name','cal','prot','carb','fib','fat','sugar','sodium','satfat','pot','calcium','iron','mag','vitc','vitd','omega3','b12','zinc','folate','selenium'];
-  fields.forEach(k => {
-    const el = document.getElementById('e-'+k);
-    if (el) el.value = meal[k] !== undefined ? meal[k] : (k==='name' ? '' : 0);
-  });
+  document.getElementById('e-name').value = meal.name || '';
+
+  // Load existing ingredients if stored, otherwise start fresh
+  editingIngredients = meal.ingredients ? [...meal.ingredients] : [];
+
+  // If no ingredients stored, show the existing nutrition as a single "ingredient" placeholder
+  if (editingIngredients.length === 0 && meal.cal > 0) {
+    editingIngredients = [{
+      name: meal.name || 'Original nutrition',
+      nutrition: { cal:meal.cal||0, prot:meal.prot||0, carb:meal.carb||0, fib:meal.fib||0, fat:meal.fat||0, sugar:meal.sugar||0, sodium:meal.sodium||0, satfat:meal.satfat||0, pot:meal.pot||0, calcium:meal.calcium||0, iron:meal.iron||0, mag:meal.mag||0, vitc:meal.vitc||0, vitd:meal.vitd||0, omega3:meal.omega3||0, b12:meal.b12||0, zinc:meal.zinc||0, folate:meal.folate||0, selenium:meal.selenium||0 }
+    }];
+  }
+
   document.querySelectorAll('#editColorPicker .color-dot').forEach(d => {
     d.classList.toggle('selected', d.dataset.color === editingColor);
   });
+
+  document.getElementById('ing-name').value = '';
+  document.getElementById('ingError').style.display = 'none';
   document.getElementById('editMealModal').style.display = 'block';
   window.scrollTo(0,0);
+
+  renderIngredients();
+  updateEditTotals();
 }
 
 function closeEditMeal() {
   document.getElementById('editMealModal').style.display = 'none';
   editingMealId = null;
+  editingIngredients = [];
 }
 
 function selectEditColor(el) {
@@ -1268,41 +1296,126 @@ function selectEditColor(el) {
   editingColor = el.dataset.color;
 }
 
+function renderIngredients() {
+  const list = document.getElementById('ingredientsList');
+  list.innerHTML = '';
+  if (editingIngredients.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:12px;color:var(--muted);font-size:12px">No ingredients yet — add one below</div>';
+    return;
+  }
+  editingIngredients.forEach((ing, i) => {
+    const el = document.createElement('div');
+    el.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px';
+    el.innerHTML = `
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500;color:var(--text)">${ing.name}</div>
+        <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px">
+          ${Math.round(ing.nutrition.cal||0)} cal · ${Math.round(ing.nutrition.prot||0)}g prot · ${Math.round(ing.nutrition.fib||0)}g fiber
+        </div>
+      </div>
+      <button onclick="removeIngredient(${i})" style="background:none;border:none;color:var(--accent3);font-size:18px;cursor:pointer;line-height:1;padding:4px">×</button>`;
+    list.appendChild(el);
+  });
+}
+
+function removeIngredient(idx) {
+  editingIngredients.splice(idx, 1);
+  renderIngredients();
+  updateEditTotals();
+}
+
+function updateEditTotals() {
+  const T = {};
+  NUTR_KEYS.forEach(k => T[k] = 0);
+  editingIngredients.forEach(ing => {
+    NUTR_KEYS.forEach(k => { T[k] += (+ing.nutrition[k] || 0); });
+  });
+
+  document.getElementById('et-cal').textContent   = Math.round(T.cal);
+  document.getElementById('et-prot').textContent  = Math.round(T.prot) + 'g';
+  document.getElementById('et-fib').textContent   = Math.round(T.fib) + 'g';
+  document.getElementById('et-carb').textContent  = Math.round(T.carb) + 'g';
+  document.getElementById('et-fat').textContent   = Math.round(T.fat) + 'g';
+  document.getElementById('et-sugar').textContent = Math.round(T.sugar) + 'g';
+  document.getElementById('et-sodium').textContent= Math.round(T.sodium) + 'mg';
+  document.getElementById('et-satfat').textContent= Math.round(T.satfat*10)/10 + 'g';
+  document.getElementById('et-pot').textContent   = Math.round(T.pot) + 'mg';
+  document.getElementById('et-calcium').textContent= Math.round(T.calcium) + 'mg';
+  document.getElementById('et-iron').textContent  = Math.round(T.iron*10)/10 + 'mg';
+  document.getElementById('et-mag').textContent   = Math.round(T.mag) + 'mg';
+  document.getElementById('et-vitc').textContent  = Math.round(T.vitc) + 'mg';
+  document.getElementById('et-vitd').textContent  = Math.round(T.vitd*10)/10 + 'mcg';
+  document.getElementById('et-omega3').textContent= Math.round(T.omega3*100)/100 + 'g';
+  document.getElementById('et-b12').textContent   = Math.round(T.b12*10)/10 + 'mcg';
+  document.getElementById('et-zinc').textContent  = Math.round(T.zinc*10)/10 + 'mg';
+  document.getElementById('et-folate').textContent= Math.round(T.folate) + 'mcg';
+  document.getElementById('et-selenium').textContent= Math.round(T.selenium*10)/10 + 'mcg';
+}
+
+async function addIngredient() {
+  const input = document.getElementById('ing-name').value.trim();
+  if (!input) return;
+  const btn = document.getElementById('addIngBtn');
+  const loadEl = document.getElementById('ingLoading');
+  const errEl = document.getElementById('ingError');
+  btn.disabled = true;
+  loadEl.style.display = 'block';
+  errEl.style.display = 'none';
+
+  try {
+    const r = await fetch('/.netlify/functions/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ food: input })
+    });
+    if (!r.ok) throw new Error('API error');
+    const nutrition = await r.json();
+    if (nutrition.error) throw new Error(nutrition.error);
+
+    editingIngredients.push({ name: input, nutrition });
+    document.getElementById('ing-name').value = '';
+    renderIngredients();
+    updateEditTotals();
+    showToast('Ingredient added!');
+  } catch(e) {
+    errEl.textContent = 'Could not look up — try rephrasing (e.g. "½ cup rolled oats")';
+    errEl.style.display = 'block';
+  }
+  btn.disabled = false;
+  loadEl.style.display = 'none';
+}
+
+document.getElementById('ing-name')?.addEventListener('keydown', e => { if(e.key==='Enter') addIngredient(); });
+
 async function saveEditedMeal() {
   if (!editingMealId) return;
+  // Compute totals from ingredients
+  const T = {};
+  NUTR_KEYS.forEach(k => T[k] = 0);
+  editingIngredients.forEach(ing => {
+    NUTR_KEYS.forEach(k => { T[k] += (+ing.nutrition[k] || 0); });
+  });
+  // Round
+  const intKeys = new Set(['cal','sodium','pot','calcium','mag','vitc','folate']);
+  NUTR_KEYS.forEach(k => { T[k] = intKeys.has(k) ? Math.round(T[k]) : Math.round(T[k]*10)/10; });
+
   const updated = {
-    name:     document.getElementById('e-name').value.trim(),
-    color:    editingColor,
-    cal:      +document.getElementById('e-cal').value    ||0,
-    prot:     +document.getElementById('e-prot').value   ||0,
-    carb:     +document.getElementById('e-carb').value   ||0,
-    fib:      +document.getElementById('e-fib').value    ||0,
-    fat:      +document.getElementById('e-fat').value    ||0,
-    sugar:    +document.getElementById('e-sugar').value  ||0,
-    sodium:   +document.getElementById('e-sodium').value ||0,
-    satfat:   +document.getElementById('e-satfat').value ||0,
-    pot:      +document.getElementById('e-pot').value    ||0,
-    calcium:  +document.getElementById('e-calcium').value||0,
-    iron:     +document.getElementById('e-iron').value   ||0,
-    mag:      +document.getElementById('e-mag').value    ||0,
-    vitc:     +document.getElementById('e-vitc').value   ||0,
-    vitd:     +document.getElementById('e-vitd').value   ||0,
-    omega3:   +document.getElementById('e-omega3').value ||0,
-    b12:      +document.getElementById('e-b12').value    ||0,
-    zinc:     +document.getElementById('e-zinc').value   ||0,
-    folate:   +document.getElementById('e-folate').value ||0,
-    selenium: +document.getElementById('e-selenium').value||0,
+    name:  document.getElementById('e-name').value.trim() || 'Untitled Meal',
+    color: editingColor,
+    ingredients: editingIngredients,
+    ...T
   };
+
   try {
-    await sb.from('saved_meals').update({meal_data: updated}).eq('id', editingMealId);
+    await sb.from('saved_meals').update({ meal_data: updated }).eq('id', editingMealId);
   } catch(e) {}
   const idx = savedMeals.findIndex(m => m._db_id === editingMealId);
-  if (idx >= 0) savedMeals[idx] = {...savedMeals[idx], ...updated};
+  if (idx >= 0) savedMeals[idx] = { ...savedMeals[idx], ...updated };
   localStorage.setItem('saved_meals_'+currentUser, JSON.stringify(savedMeals));
   closeEditMeal();
   renderMealsPage();
   renderAddSavedList();
-  showToast('Meal updated!');
+  showToast('Meal saved!');
 }
 
 async function saveNewMeal(){
